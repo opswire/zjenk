@@ -3,7 +3,6 @@ module mcp-jenkins
 go 1.23.0
 
 require (
-	github.com/bndr/gojenkins v1.1.0
 	github.com/go-resty/resty/v2 v2.16.5
 	github.com/modelcontextprotocol/go-sdk v0.2.0
 	github.com/stretchr/testify v1.11.1
