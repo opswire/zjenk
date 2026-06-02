@@ -1,0 +1,70 @@
+jenkins:
+  url: "http://localhost:8080"
+  username: "admin"
+  password: "your-api-token"
+
+mcp:
+  name: "jenkins"
+  version: "1.0.0"
+
+tools:
+  jenkins_list_jobs:
+    is-enabled: true
+    name: jenkins_list_jobs
+    description:
+      ru: "Получить список всех задач Jenkins с именем, URL и цветом статуса"
+      en: "List all jobs in Jenkins with their name, URL and status color"
+  jenkins_get_job:
+    is-enabled: true
+    name: jenkins_get_job
+    description:
+      ru: "Получить детали конкретной задачи Jenkins по имени"
+      en: "Get details of a specific Jenkins job by name"
+  jenkins_list_builds:
+    is-enabled: true
+    name: jenkins_list_builds
+    description:
+      ru: "Получить список всех сборок для задачи Jenkins"
+      en: "List all builds for a Jenkins job"
+  jenkins_get_build:
+    is-enabled: true
+    name: jenkins_get_build
+    description:
+      ru: "Получить детали конкретной сборки (результат, длительность, причины запуска)"
+      en: "Get details of a specific build (result, duration, causes)"
+  jenkins_get_build_log:
+    is-enabled: true
+    name: jenkins_get_build_log
+    description:
+      ru: "Получить полный вывод консоли сборки"
+      en: "Get the full console output log of a build"
+  jenkins_trigger_build:
+    is-enabled: true
+    name: jenkins_trigger_build
+    description:
+      ru: "Запустить новую сборку задачи Jenkins с опциональными параметрами"
+      en: "Trigger a new build for a Jenkins job with optional parameters"
+  jenkins_stop_build:
+    is-enabled: true
+    name: jenkins_stop_build
+    description:
+      ru: "Прервать выполняющуюся сборку Jenkins"
+      en: "Abort a running Jenkins build"
+  jenkins_list_nodes:
+    is-enabled: true
+    name: jenkins_list_nodes
+    description:
+      ru: "Получить список всех агентов/узлов Jenkins с их статусом"
+      en: "List all Jenkins agents/nodes with their status"
+  jenkins_get_queue:
+    is-enabled: true
+    name: jenkins_get_queue
+    description:
+      ru: "Получить текущую очередь сборок Jenkins"
+      en: "Get the current Jenkins build queue"
+  jenkins_search_log:
+    is-enabled: true
+    name: jenkins_search_log
+    description:
+      ru: "Найти строки в логе сборки по регулярному выражению или подстроке"
+      en: "Search for lines matching a pattern in a Jenkins build log"
