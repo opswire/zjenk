@@ -30,7 +30,7 @@ func Run(lc fx.Lifecycle, s *mcp.Server, log *zap.Logger) {
 		OnStart: func(ctx context.Context) error {
 			go func() {
 				log.Info("starting MCP server on stdio")
-				if err := s.Run(context.Background(), mcp.NewStdioTransport()); err != nil {
+				if err := s.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 					log.Error("MCP server stopped with error", zap.Error(err))
 				}
 			}()

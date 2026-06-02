@@ -28,9 +28,9 @@ func (t *SearchTools) Register(s *mcp.Server) {
 }
 
 type searchLogInput struct {
-	JobName     string `json:"job_name"     jsonschema:"Jenkins job name"`
-	BuildNumber int64  `json:"build_number" jsonschema:"Build number"`
-	Pattern     string `json:"pattern"      jsonschema:"Regex pattern or substring to search for in the build log"`
+	JobName     string `json:"job_name"     jsonschema:"description=Jenkins job name"`
+	BuildNumber int64  `json:"build_number" jsonschema:"description=Build number"`
+	Pattern     string `json:"pattern"      jsonschema:"description=Regex pattern or substring to search for in the build log"`
 }
 
 type searchMatch struct {
@@ -40,28 +40,28 @@ type searchMatch struct {
 
 func (t *SearchTools) searchLog(
 	ctx context.Context,
-	_ *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[searchLogInput],
-) (*mcp.CallToolResultFor[struct{}], error) {
-	if err := validateBuildRef(params.Arguments.JobName, params.Arguments.BuildNumber); err != nil {
-		return toolError(err.Error()), nil
+	_ *mcp.CallToolRequest,
+	input searchLogInput,
+) (*mcp.CallToolResult, struct{}, error) {
+	if err := validateBuildRef(input.JobName, input.BuildNumber); err != nil {
+		return toolError(err.Error()), struct{}{}, nil
 	}
-	if params.Arguments.Pattern == "" {
-		return toolError("pattern is required"), nil
+	if input.Pattern == "" {
+		return toolError("pattern is required"), struct{}{}, nil
 	}
 
-	log, err := t.jenkins.GetBuildLog(ctx, params.Arguments.JobName, params.Arguments.BuildNumber)
+	log, err := t.jenkins.GetBuildLog(ctx, input.JobName, input.BuildNumber)
 	if err != nil {
-		return toolError(fmt.Sprintf("failed to get build log: %v", err)), nil
+		return toolError(fmt.Sprintf("failed to get build log: %v", err)), struct{}{}, nil
 	}
 
-	re, reErr := regexp.Compile(params.Arguments.Pattern)
+	re, reErr := regexp.Compile(input.Pattern)
 
 	var matches []searchMatch
 	for i, line := range strings.Split(log, "\n") {
 		var matched bool
 		if reErr != nil {
-			matched = strings.Contains(line, params.Arguments.Pattern)
+			matched = strings.Contains(line, input.Pattern)
 		} else {
 			matched = re.MatchString(line)
 		}
@@ -70,5 +70,6 @@ func (t *SearchTools) searchLog(
 		}
 	}
 
-	return toolJSON(matches)
+	result, err := toolJSON(matches)
+	return result, struct{}{}, err
 }
