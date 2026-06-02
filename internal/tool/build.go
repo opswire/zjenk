@@ -8,6 +8,7 @@ import (
 
 	"mcp-jenkins/internal/client"
 	"mcp-jenkins/internal/config"
+	"mcp-jenkins/internal/dto"
 )
 
 type BuildTools struct {
@@ -19,134 +20,86 @@ func NewBuildTools(j *client.Jenkins, cfg *config.Config) *BuildTools {
 	return &BuildTools{jenkins: j, cfg: cfg}
 }
 
-func (t *BuildTools) Register(s *mcp.Server) {
-	if tc := t.cfg.Tool("jenkins_list_builds"); tc.IsEnabled {
-		mcp.AddTool(s, &mcp.Tool{Name: tc.Name, Description: tc.Description.EN}, t.listBuilds)
-	}
-	if tc := t.cfg.Tool("jenkins_get_build"); tc.IsEnabled {
-		mcp.AddTool(s, &mcp.Tool{Name: tc.Name, Description: tc.Description.EN}, t.getBuild)
-	}
-	if tc := t.cfg.Tool("jenkins_get_build_log"); tc.IsEnabled {
-		mcp.AddTool(s, &mcp.Tool{Name: tc.Name, Description: tc.Description.EN}, t.getBuildLog)
-	}
-	if tc := t.cfg.Tool("jenkins_trigger_build"); tc.IsEnabled {
-		mcp.AddTool(s, &mcp.Tool{Name: tc.Name, Description: tc.Description.EN}, t.triggerBuild)
-	}
-	if tc := t.cfg.Tool("jenkins_stop_build"); tc.IsEnabled {
-		mcp.AddTool(s, &mcp.Tool{Name: tc.Name, Description: tc.Description.EN}, t.stopBuild)
-	}
-}
-
-type jobNameInput struct {
-	JobName string `json:"job_name" jsonschema:"description=Jenkins job name"`
-}
-
-type buildRefInput struct {
-	JobName     string `json:"job_name"     jsonschema:"description=Jenkins job name"`
-	BuildNumber int64  `json:"build_number" jsonschema:"description=Build number"`
-}
-
-type triggerBuildInput struct {
-	JobName string            `json:"job_name"         jsonschema:"description=Jenkins job name"`
-	Params  map[string]string `json:"params,omitempty" jsonschema:"description=Optional build parameters as key-value pairs"`
-}
-
-func (t *BuildTools) listBuilds(
+// ListBuilds — Out is `any` ([]dto.Build); see ListJobs for the reason.
+func (t *BuildTools) ListBuilds(
 	ctx context.Context,
 	_ *mcp.CallToolRequest,
-	input jobNameInput,
-) (*mcp.CallToolResult, struct{}, error) {
-	if input.JobName == "" {
-		return toolError("job_name is required"), struct{}{}, nil
+	input ListBuildsInput,
+) (*mcp.CallToolResult, any, error) {
+	if err := input.Validate(); err != nil {
+		return toolError(err.Error()), nil, nil
 	}
-	builds, err := t.jenkins.ListBuilds(ctx, input.JobName)
+	builds, err := t.jenkins.ListBuilds(ctx, input.JobURL)
 	if err != nil {
-		return toolError(fmt.Sprintf("failed to list builds: %v", err)), struct{}{}, nil
+		return toolError(fmt.Sprintf("failed to list builds: %v", err)), nil, nil
 	}
-	result, err := toolJSON(builds)
-	return result, struct{}{}, err
+	return nil, builds, nil
 }
 
-func (t *BuildTools) getBuild(
+func (t *BuildTools) GetBuild(
 	ctx context.Context,
 	_ *mcp.CallToolRequest,
-	input buildRefInput,
-) (*mcp.CallToolResult, struct{}, error) {
-	if err := validateBuildRef(input.JobName, input.BuildNumber); err != nil {
-		return toolError(err.Error()), struct{}{}, nil
+	input BuildRefInput,
+) (*mcp.CallToolResult, *dto.Build, error) {
+	if err := input.Validate(); err != nil {
+		return toolError(err.Error()), nil, nil
 	}
-	build, err := t.jenkins.GetBuild(ctx, input.JobName, input.BuildNumber)
+	build, err := t.jenkins.GetBuild(ctx, input.JobURL, input.BuildNumber)
 	if err != nil {
-		return toolError(fmt.Sprintf("failed to get build: %v", err)), struct{}{}, nil
+		return toolError(fmt.Sprintf("failed to get build: %v", err)), nil, nil
 	}
-	result, err := toolJSON(build)
-	return result, struct{}{}, err
+	return nil, build, nil
 }
 
-func (t *BuildTools) getBuildLog(
+// GetBuildLog returns raw console text — no structured output.
+func (t *BuildTools) GetBuildLog(
 	ctx context.Context,
 	_ *mcp.CallToolRequest,
-	input buildRefInput,
-) (*mcp.CallToolResult, struct{}, error) {
-	if err := validateBuildRef(input.JobName, input.BuildNumber); err != nil {
-		return toolError(err.Error()), struct{}{}, nil
+	input BuildRefInput,
+) (*mcp.CallToolResult, any, error) {
+	if err := input.Validate(); err != nil {
+		return toolError(err.Error()), nil, nil
 	}
-	log, err := t.jenkins.GetBuildLog(ctx, input.JobName, input.BuildNumber)
+	log, err := t.jenkins.GetBuildLog(ctx, input.JobURL, input.BuildNumber)
 	if err != nil {
-		return toolError(fmt.Sprintf("failed to get build log: %v", err)), struct{}{}, nil
+		return toolError(fmt.Sprintf("failed to get build log: %v", err)), nil, nil
 	}
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{&mcp.TextContent{Text: log}},
-	}, struct{}{}, nil
+	}, nil, nil
 }
 
-func (t *BuildTools) triggerBuild(
+func (t *BuildTools) TriggerBuild(
 	ctx context.Context,
 	_ *mcp.CallToolRequest,
-	input triggerBuildInput,
-) (*mcp.CallToolResult, struct{}, error) {
-	if input.JobName == "" {
-		return toolError("job_name is required"), struct{}{}, nil
+	input TriggerBuildInput,
+) (*mcp.CallToolResult, *dto.TriggerResult, error) {
+	if err := input.Validate(); err != nil {
+		return toolError(err.Error()), nil, nil
 	}
-	queueID, err := t.jenkins.TriggerBuild(ctx, input.JobName, input.Params)
+	queueID, err := t.jenkins.TriggerBuild(ctx, input.JobURL, input.Params)
 	if err != nil {
-		return toolError(fmt.Sprintf("failed to trigger build: %v", err)), struct{}{}, nil
+		return toolError(fmt.Sprintf("failed to trigger build: %v", err)), nil, nil
 	}
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
-			&mcp.TextContent{
-				Text: fmt.Sprintf("Build triggered for job %q. Queue ID: %d", input.JobName, queueID),
-			},
-		},
-	}, struct{}{}, nil
+	return nil, &dto.TriggerResult{JobURL: input.JobURL, QueueID: queueID}, nil
 }
 
-func (t *BuildTools) stopBuild(
+func (t *BuildTools) StopBuild(
 	ctx context.Context,
 	_ *mcp.CallToolRequest,
-	input buildRefInput,
-) (*mcp.CallToolResult, struct{}, error) {
-	if err := validateBuildRef(input.JobName, input.BuildNumber); err != nil {
-		return toolError(err.Error()), struct{}{}, nil
+	input BuildRefInput,
+) (*mcp.CallToolResult, any, error) {
+	if err := input.Validate(); err != nil {
+		return toolError(err.Error()), nil, nil
 	}
-	if err := t.jenkins.StopBuild(ctx, input.JobName, input.BuildNumber); err != nil {
-		return toolError(fmt.Sprintf("failed to stop build: %v", err)), struct{}{}, nil
+	if err := t.jenkins.StopBuild(ctx, input.JobURL, input.BuildNumber); err != nil {
+		return toolError(fmt.Sprintf("failed to stop build: %v", err)), nil, nil
 	}
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{
-				Text: fmt.Sprintf("Build #%d for job %q has been stopped", input.BuildNumber, input.JobName),
+				Text: fmt.Sprintf("Build #%d stopped", input.BuildNumber),
 			},
 		},
-	}, struct{}{}, nil
-}
-
-func validateBuildRef(jobName string, buildNumber int64) error {
-	if jobName == "" {
-		return fmt.Errorf("job_name is required")
-	}
-	if buildNumber <= 0 {
-		return fmt.Errorf("build_number must be a positive integer")
-	}
-	return nil
+	}, nil, nil
 }

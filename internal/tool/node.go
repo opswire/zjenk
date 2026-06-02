@@ -19,37 +19,28 @@ func NewNodeTools(j *client.Jenkins, cfg *config.Config) *NodeTools {
 	return &NodeTools{jenkins: j, cfg: cfg}
 }
 
-func (t *NodeTools) Register(s *mcp.Server) {
-	if tc := t.cfg.Tool("jenkins_list_nodes"); tc.IsEnabled {
-		mcp.AddTool(s, &mcp.Tool{Name: tc.Name, Description: tc.Description.EN}, t.listNodes)
-	}
-	if tc := t.cfg.Tool("jenkins_get_queue"); tc.IsEnabled {
-		mcp.AddTool(s, &mcp.Tool{Name: tc.Name, Description: tc.Description.EN}, t.getQueue)
-	}
-}
-
-func (t *NodeTools) listNodes(
+// ListNodes — Out is `any` ([]dto.Node); see ListJobs for the reason.
+func (t *NodeTools) ListNodes(
 	ctx context.Context,
 	_ *mcp.CallToolRequest,
 	_ struct{},
-) (*mcp.CallToolResult, struct{}, error) {
+) (*mcp.CallToolResult, any, error) {
 	nodes, err := t.jenkins.ListNodes(ctx)
 	if err != nil {
-		return toolError(fmt.Sprintf("failed to list nodes: %v", err)), struct{}{}, nil
+		return toolError(fmt.Sprintf("failed to list nodes: %v", err)), nil, nil
 	}
-	result, err := toolJSON(nodes)
-	return result, struct{}{}, err
+	return nil, nodes, nil
 }
 
-func (t *NodeTools) getQueue(
+// GetQueue — Out is `any` ([]dto.QueueItem); see ListJobs for the reason.
+func (t *NodeTools) GetQueue(
 	ctx context.Context,
 	_ *mcp.CallToolRequest,
 	_ struct{},
-) (*mcp.CallToolResult, struct{}, error) {
+) (*mcp.CallToolResult, any, error) {
 	items, err := t.jenkins.GetQueue(ctx)
 	if err != nil {
-		return toolError(fmt.Sprintf("failed to get queue: %v", err)), struct{}{}, nil
+		return toolError(fmt.Sprintf("failed to get queue: %v", err)), nil, nil
 	}
-	result, err := toolJSON(items)
-	return result, struct{}{}, err
+	return nil, items, nil
 }

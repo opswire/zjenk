@@ -2,13 +2,13 @@ package tool
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"mcp-jenkins/internal/client"
 	"mcp-jenkins/internal/config"
+	"mcp-jenkins/internal/dto"
 )
 
 type JobTools struct {
@@ -20,62 +20,32 @@ func NewJobTools(j *client.Jenkins, cfg *config.Config) *JobTools {
 	return &JobTools{jenkins: j, cfg: cfg}
 }
 
-func (t *JobTools) Register(s *mcp.Server) {
-	if tc := t.cfg.Tool("jenkins_list_jobs"); tc.IsEnabled {
-		mcp.AddTool(s, &mcp.Tool{Name: tc.Name, Description: tc.Description.EN}, t.listJobs)
-	}
-	if tc := t.cfg.Tool("jenkins_get_job"); tc.IsEnabled {
-		mcp.AddTool(s, &mcp.Tool{Name: tc.Name, Description: tc.Description.EN}, t.getJob)
-	}
-}
-
-type getJobInput struct {
-	JobName string `json:"job_name" jsonschema:"description=Jenkins job name"`
-}
-
-func (t *JobTools) listJobs(
+// ListJobs returns all Jenkins jobs.
+// Out is `any` because the MCP SDK panics when output schema type is not "object";
+// slices produce type "array". The serialised value is still []dto.Job.
+func (t *JobTools) ListJobs(
 	ctx context.Context,
 	_ *mcp.CallToolRequest,
 	_ struct{},
-) (*mcp.CallToolResult, struct{}, error) {
+) (*mcp.CallToolResult, any, error) {
 	jobs, err := t.jenkins.ListJobs(ctx)
 	if err != nil {
-		return toolError(fmt.Sprintf("failed to list jobs: %v", err)), struct{}{}, nil
+		return toolError(fmt.Sprintf("failed to list jobs: %v", err)), nil, nil
 	}
-	result, err := toolJSON(jobs)
-	return result, struct{}{}, err
+	return nil, jobs, nil
 }
 
-func (t *JobTools) getJob(
+func (t *JobTools) GetJob(
 	ctx context.Context,
 	_ *mcp.CallToolRequest,
-	input getJobInput,
-) (*mcp.CallToolResult, struct{}, error) {
-	if input.JobName == "" {
-		return toolError("job_name is required"), struct{}{}, nil
+	input GetJobInput,
+) (*mcp.CallToolResult, *dto.Job, error) {
+	if err := input.Validate(); err != nil {
+		return toolError(err.Error()), nil, nil
 	}
-
-	job, err := t.jenkins.GetJob(ctx, input.JobName)
+	job, err := t.jenkins.GetJob(ctx, input.JobURL)
 	if err != nil {
-		return toolError(fmt.Sprintf("failed to get job %q: %v", input.JobName, err)), struct{}{}, nil
+		return toolError(fmt.Sprintf("failed to get job: %v", err)), nil, nil
 	}
-	result, err := toolJSON(job)
-	return result, struct{}{}, err
-}
-
-func toolJSON(v any) (*mcp.CallToolResult, error) {
-	data, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		return nil, fmt.Errorf("marshal result: %w", err)
-	}
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{&mcp.TextContent{Text: string(data)}},
-	}, nil
-}
-
-func toolError(msg string) *mcp.CallToolResult {
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{&mcp.TextContent{Text: msg}},
-		IsError: true,
-	}
+	return nil, job, nil
 }
