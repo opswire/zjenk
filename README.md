@@ -19,7 +19,7 @@ MCP-сервер, который предоставляет Jenkins как на�
 
 ### Параметр job_path
 
-Большинство инструментов принимают `job_path` — путь к джобе **без** префикса `/job/`.
+Инструменты `get_job`, `list_builds`, `get_build`, `get_build_log`, `trigger_build`, `stop_build`, `search_log` принимают `job_path` — путь к джобе **без** префикса `/job/`.
 
 | Тип джобы       | Пример job_path           |
 |-----------------|---------------------------|
@@ -29,11 +29,17 @@ MCP-сервер, который предоставляет Jenkins как на�
 
 Сервер автоматически преобразует путь в формат Jenkins REST API: `folder/my-job` → `/job/folder/job/my-job`.
 
+### Параметр project_name
+
+Инструменты `list_jobs`, `list_nodes`, `get_queue` принимают `project_name` — имя проекта, которое подставляется как поддомен Jenkins URL.
+
+Например, при базовом URL `https://jenkins.domain.com` и `project_name: my-project` запрос уйдёт на `https://my-project.jenkins.domain.com`.
+
 Путь к конфигу можно переопределить через переменную окружения `CONFIG_PATH`.
 
 ## Интеграционные тесты
 
-Тесты подключаются к реальному Jenkins и пропускаются автоматически, если не задан `JENKINS_URL`.
+Тесты подключаются к реальному Jenkins и пропускаются автоматически, если не задан `JENKINS_URL`. Тестовые джоба и проект задаются константами `testJob` и `testProject` в файле теста.
 
 ```bash
 JENKINS_URL=http://localhost:8080 \
@@ -42,11 +48,9 @@ JENKINS_PASSWORD=your-api-token \
 go test ./internal/client/ -v
 ```
 
-| Переменная                | Обязательная | Описание                                                    |
-|---------------------------|--------------|-------------------------------------------------------------|
-| `JENKINS_URL`             | да           | Базовый URL Jenkins                                         |
-| `JENKINS_USERNAME`        | да           | Имя пользователя                                            |
-| `JENKINS_PASSWORD`        | да           | API-токен                                                   |
-| `JENKINS_TEST_JOB`        | нет          | Путь к джобе для тестов чтения (определяется автоматически) |
-| `JENKINS_ALLOW_MUTATIONS` | нет          | Установите `true` чтобы включить тест `TriggerBuild`        |
-
+| Переменная                | Обязательная | Описание                                              |
+|---------------------------|--------------|-------------------------------------------------------|
+| `JENKINS_URL`             | да           | Базовый URL Jenkins                                   |
+| `JENKINS_USERNAME`        | да           | Имя пользователя                                      |
+| `JENKINS_PASSWORD`        | да           | API-токен                                             |
+| `JENKINS_ALLOW_MUTATIONS` | нет          | Установите `true` чтобы включить тест `TriggerBuild`  |
