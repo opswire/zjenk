@@ -5,8 +5,14 @@ type JobPathInput struct {
 	JobPath string `json:"job_path" jsonschema:"[Required] Путь к джобе без префикса /job/, например: my-job или folder/subfolder/my-job"`
 }
 
+// ProjectNameInput встраивается в инпуты listJobs, listNodes, getQueue.
+// project_name подставляется как поддомен Jenkins URL: specific-name.jenkins.domain.com
+type ProjectNameInput struct {
+	ProjectName string `json:"project_name" jsonschema:"[Required] Имя проекта, подставляется как поддомен Jenkins URL, например: my-project"`
+}
+
 type ListJobsInput struct {
-	JobPathInput
+	ProjectNameInput
 }
 
 type GetJobInput struct {
@@ -34,9 +40,9 @@ type SearchLogInput struct {
 }
 
 type ListNodesInput struct {
-	JobPathInput
+	ProjectNameInput
 }
 
 type GetQueueInput struct {
-	JobPathInput
+	ProjectNameInput
 }

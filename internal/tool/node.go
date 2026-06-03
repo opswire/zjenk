@@ -26,7 +26,7 @@ func (t *NodeTools) ListNodes(
 	if err := input.Validate(); err != nil {
 		return toolError(err.Error()), nil, nil
 	}
-	nodes, err := t.jenkins.ListNodes(ctx)
+	nodes, err := t.jenkins.ListNodes(ctx, input.ProjectName)
 	if err != nil {
 		return toolError(fmt.Sprintf("failed to list nodes: %v", err)), nil, nil
 	}
@@ -42,7 +42,7 @@ func (t *NodeTools) GetQueue(
 	if err := input.Validate(); err != nil {
 		return toolError(err.Error()), nil, nil
 	}
-	items, err := t.jenkins.GetQueue(ctx)
+	items, err := t.jenkins.GetQueue(ctx, input.ProjectName)
 	if err != nil {
 		return toolError(fmt.Sprintf("failed to get queue: %v", err)), nil, nil
 	}

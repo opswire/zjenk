@@ -13,9 +13,13 @@ var jobPathRules = []validation.Rule{
 	validation.Match(jobPathRe).Error("не должен начинаться с /"),
 }
 
+var projectNameRules = []validation.Rule{
+	validation.Required,
+}
+
 func (i ListJobsInput) Validate() error {
 	return validation.ValidateStruct(&i,
-		validation.Field(&i.JobPath, jobPathRules...),
+		validation.Field(&i.ProjectName, projectNameRules...),
 	)
 }
 
@@ -54,12 +58,12 @@ func (i SearchLogInput) Validate() error {
 
 func (i ListNodesInput) Validate() error {
 	return validation.ValidateStruct(&i,
-		validation.Field(&i.JobPath, jobPathRules...),
+		validation.Field(&i.ProjectName, projectNameRules...),
 	)
 }
 
 func (i GetQueueInput) Validate() error {
 	return validation.ValidateStruct(&i,
-		validation.Field(&i.JobPath, jobPathRules...),
+		validation.Field(&i.ProjectName, projectNameRules...),
 	)
 }

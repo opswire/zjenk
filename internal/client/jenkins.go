@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -13,20 +14,31 @@ import (
 )
 
 type Jenkins struct {
-	http *resty.Client
+	http    *resty.Client
+	baseURL string
 }
 
 func New(cfg *config.Config) *Jenkins {
 	r := resty.New().
 		SetBaseURL(cfg.Jenkins.URL).
 		SetBasicAuth(cfg.Jenkins.Username, cfg.Jenkins.Password)
-	return &Jenkins{http: r}
+	return &Jenkins{http: r, baseURL: strings.TrimRight(cfg.Jenkins.URL, "/")}
 }
 
-func (j *Jenkins) ListJobs(ctx context.Context, jobPath string) ([]dto.Job, error) {
-	path := "/api/json"
-	if jobPath != "" {
-		path = jobAPIPath(jobPath) + "/api/json"
+// subdomainURL строит URL с projectName как поддоменом: "proj" + "https://jenkins.domain.com" → "https://proj.jenkins.domain.com".
+func (j *Jenkins) subdomainURL(projectName string) (string, error) {
+	u, err := url.Parse(j.baseURL)
+	if err != nil {
+		return "", fmt.Errorf("parse base url: %w", err)
+	}
+	u.Host = projectName + "." + u.Host
+	return u.String(), nil
+}
+
+func (j *Jenkins) ListJobs(ctx context.Context, projectName string) ([]dto.Job, error) {
+	base, err := j.subdomainURL(projectName)
+	if err != nil {
+		return nil, err
 	}
 
 	var data apiJobsResponse
@@ -34,7 +46,7 @@ func (j *Jenkins) ListJobs(ctx context.Context, jobPath string) ([]dto.Job, erro
 		SetContext(ctx).
 		SetResult(&data).
 		SetQueryParam("tree", "jobs[name,url,color,inQueue]").
-		Get(path)
+		Get(base + "/api/json")
 	if err != nil {
 		return nil, fmt.Errorf("list jobs: %w", err)
 	}
@@ -157,13 +169,18 @@ func (j *Jenkins) StopBuild(ctx context.Context, jobPath string, number int64) e
 	return nil
 }
 
-func (j *Jenkins) ListNodes(ctx context.Context) ([]dto.Node, error) {
+func (j *Jenkins) ListNodes(ctx context.Context, projectName string) ([]dto.Node, error) {
+	base, err := j.subdomainURL(projectName)
+	if err != nil {
+		return nil, err
+	}
+
 	var data apiNodesResponse
 	resp, err := j.http.R().
 		SetContext(ctx).
 		SetResult(&data).
 		SetQueryParam("tree", "computer[displayName,offline,temporarilyOffline,numExecutors,offlineCauseReason]").
-		Get("/computer/api/json")
+		Get(base + "/computer/api/json")
 	if err != nil {
 		return nil, fmt.Errorf("list nodes: %w", err)
 	}
@@ -184,12 +201,17 @@ func (j *Jenkins) ListNodes(ctx context.Context) ([]dto.Node, error) {
 	return result, nil
 }
 
-func (j *Jenkins) GetQueue(ctx context.Context) ([]dto.QueueItem, error) {
+func (j *Jenkins) GetQueue(ctx context.Context, projectName string) ([]dto.QueueItem, error) {
+	base, err := j.subdomainURL(projectName)
+	if err != nil {
+		return nil, err
+	}
+
 	var data apiQueueResponse
 	resp, err := j.http.R().
 		SetContext(ctx).
 		SetResult(&data).
-		Get("/queue/api/json")
+		Get(base + "/queue/api/json")
 	if err != nil {
 		return nil, fmt.Errorf("get queue: %w", err)
 	}

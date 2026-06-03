@@ -27,7 +27,7 @@ func (t *JobTools) ListJobs(
 	if err := input.Validate(); err != nil {
 		return toolError(err.Error()), nil, nil
 	}
-	jobs, err := t.jenkins.ListJobs(ctx, input.JobPath)
+	jobs, err := t.jenkins.ListJobs(ctx, input.ProjectName)
 	if err != nil {
 		return toolError(fmt.Sprintf("failed to list jobs: %v", err)), nil, nil
 	}

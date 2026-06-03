@@ -18,16 +18,17 @@ import (
 //	JENKINS_PASSWORD=token \
 //	go test ./internal/client/ -v
 //
-// Optional:
-//
-//	JENKINS_TEST_JOB=my-job        — job used for read tests (auto-discovered if empty)
 //	JENKINS_ALLOW_MUTATIONS=true   — enables TriggerBuild tests
+
+const (
+	testProject = "my-project"
+	testJob     = "my-job"
+)
 
 type JenkinsSuite struct {
 	suite.Suite
 	client    *client.Jenkins
 	ctx       context.Context
-	testJob   string
 	testBuild int64
 }
 
@@ -52,24 +53,15 @@ func (s *JenkinsSuite) SetupSuite() {
 	s.client = client.New(cfg)
 	s.ctx = context.Background()
 
-	s.testJob = os.Getenv("JENKINS_TEST_JOB")
-	if s.testJob == "" {
-		if jobs, err := s.client.ListJobs(s.ctx, ""); err == nil && len(jobs) > 0 {
-			s.testJob = jobs[0].Name
-		}
-	}
-
-	if s.testJob != "" {
-		if builds, err := s.client.ListBuilds(s.ctx, s.testJob); err == nil && len(builds) > 0 {
-			s.testBuild = builds[0].Number
-		}
+	if builds, err := s.client.ListBuilds(s.ctx, testJob); err == nil && len(builds) > 0 {
+		s.testBuild = builds[0].Number
 	}
 }
 
 // --- Jobs ---
 
 func (s *JenkinsSuite) TestListJobs() {
-	jobs, err := s.client.ListJobs(s.ctx, s.testJob)
+	jobs, err := s.client.ListJobs(s.ctx, testProject)
 	s.NoError(err)
 	s.NotNil(jobs)
 	for _, j := range jobs {
@@ -79,16 +71,12 @@ func (s *JenkinsSuite) TestListJobs() {
 }
 
 func (s *JenkinsSuite) TestGetJob() {
-	if s.testJob == "" {
-		s.T().Skip("no jobs available")
-	}
-
 	cases := []struct {
 		name    string
 		job     string
 		wantErr bool
 	}{
-		{"existing", s.testJob, false},
+		{"existing", testJob, false},
 		{"nonexistent", "no-such-job-xyz-99999", true},
 	}
 
@@ -111,16 +99,12 @@ func (s *JenkinsSuite) TestGetJob() {
 // --- Builds ---
 
 func (s *JenkinsSuite) TestListBuilds() {
-	if s.testJob == "" {
-		s.T().Skip("no jobs available")
-	}
-
 	cases := []struct {
 		name    string
 		job     string
 		wantErr bool
 	}{
-		{"existing job", s.testJob, false},
+		{"existing job", testJob, false},
 		{"nonexistent job", "no-such-job-xyz-99999", true},
 	}
 
@@ -152,8 +136,8 @@ func (s *JenkinsSuite) TestGetBuild() {
 		number  int64
 		wantErr bool
 	}{
-		{"valid", s.testJob, s.testBuild, false},
-		{"nonexistent build number", s.testJob, 999999999, true},
+		{"valid", testJob, s.testBuild, false},
+		{"nonexistent build number", testJob, 999999999, true},
 		{"nonexistent job", "no-such-job-xyz-99999", 1, true},
 	}
 
@@ -184,7 +168,7 @@ func (s *JenkinsSuite) TestGetBuildLog() {
 		number  int64
 		wantErr bool
 	}{
-		{"valid", s.testJob, s.testBuild, false},
+		{"valid", testJob, s.testBuild, false},
 		{"nonexistent job", "no-such-job-xyz-99999", 1, true},
 	}
 
@@ -205,9 +189,6 @@ func (s *JenkinsSuite) TestTriggerBuild() {
 	if os.Getenv("JENKINS_ALLOW_MUTATIONS") == "" {
 		s.T().Skip("set JENKINS_ALLOW_MUTATIONS=true to run mutation tests")
 	}
-	if s.testJob == "" {
-		s.T().Skip("no jobs available")
-	}
 
 	cases := []struct {
 		name    string
@@ -215,8 +196,8 @@ func (s *JenkinsSuite) TestTriggerBuild() {
 		params  map[string]string
 		wantErr bool
 	}{
-		{"no params", s.testJob, nil, false},
-		{"with params", s.testJob, map[string]string{"BRANCH": "main"}, false},
+		{"no params", testJob, nil, false},
+		{"with params", testJob, map[string]string{"BRANCH": "main"}, false},
 		{"nonexistent job", "no-such-job-xyz-99999", nil, true},
 	}
 
@@ -237,7 +218,7 @@ func (s *JenkinsSuite) TestTriggerBuild() {
 // --- Nodes & Queue ---
 
 func (s *JenkinsSuite) TestListNodes() {
-	nodes, err := s.client.ListNodes(s.ctx)
+	nodes, err := s.client.ListNodes(s.ctx, testProject)
 	s.NoError(err)
 	s.NotNil(nodes)
 	for _, n := range nodes {
@@ -246,7 +227,7 @@ func (s *JenkinsSuite) TestListNodes() {
 }
 
 func (s *JenkinsSuite) TestGetQueue() {
-	items, err := s.client.GetQueue(s.ctx)
+	items, err := s.client.GetQueue(s.ctx, testProject)
 	s.NoError(err)
 	s.NotNil(items)
 }
