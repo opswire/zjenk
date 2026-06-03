@@ -23,13 +23,18 @@ func New(cfg *config.Config) *Jenkins {
 	return &Jenkins{http: r}
 }
 
-func (j *Jenkins) ListJobs(ctx context.Context) ([]dto.Job, error) {
+func (j *Jenkins) ListJobs(ctx context.Context, jobPath string) ([]dto.Job, error) {
+	path := "/api/json"
+	if jobPath != "" {
+		path = jobAPIPath(jobPath) + "/api/json"
+	}
+
 	var data apiJobsResponse
 	resp, err := j.http.R().
 		SetContext(ctx).
 		SetResult(&data).
 		SetQueryParam("tree", "jobs[name,url,color,inQueue]").
-		Get("/api/json")
+		Get(path)
 	if err != nil {
 		return nil, fmt.Errorf("list jobs: %w", err)
 	}

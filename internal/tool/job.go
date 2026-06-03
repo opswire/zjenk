@@ -18,15 +18,16 @@ func NewJobTools(j *client.Jenkins) *JobTools {
 	return &JobTools{jenkins: j}
 }
 
-// ListJobs returns all Jenkins jobs.
-// Out is `any` because the MCP SDK panics when output schema type is not "object";
-// slices produce type "array". The serialised value is still []dto.Job.
+// ListJobs — Out is `any` ([]dto.Job); see comment in build.go on why not []dto.Job directly.
 func (t *JobTools) ListJobs(
 	ctx context.Context,
 	_ *mcp.CallToolRequest,
-	_ struct{},
+	input ListJobsInput,
 ) (*mcp.CallToolResult, any, error) {
-	jobs, err := t.jenkins.ListJobs(ctx)
+	if err := input.Validate(); err != nil {
+		return toolError(err.Error()), nil, nil
+	}
+	jobs, err := t.jenkins.ListJobs(ctx, input.JobPath)
 	if err != nil {
 		return toolError(fmt.Sprintf("failed to list jobs: %v", err)), nil, nil
 	}

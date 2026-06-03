@@ -1,8 +1,12 @@
 package tool
 
-// JobPathInput is embedded by all inputs that reference a Jenkins job.
+// JobPathInput встраивается во все инпуты, где job_path обязателен.
 type JobPathInput struct {
 	JobPath string `json:"job_path" jsonschema:"[Required] Путь к джобе без префикса /job/, например: my-job или folder/subfolder/my-job"`
+}
+
+type ListJobsInput struct {
+	JobPathInput
 }
 
 type GetJobInput struct {
@@ -27,4 +31,12 @@ type SearchLogInput struct {
 	JobPathInput
 	BuildNumber int64  `json:"build_number" jsonschema:"[Required] Номер сборки (целое положительное число)"`
 	Pattern     string `json:"pattern"      jsonschema:"[Required] Регулярное выражение или подстрока для поиска в логе сборки"`
+}
+
+type ListNodesInput struct {
+	JobPathInput
+}
+
+type GetQueueInput struct {
+	JobPathInput
 }

@@ -21,8 +21,11 @@ func NewNodeTools(j *client.Jenkins) *NodeTools {
 func (t *NodeTools) ListNodes(
 	ctx context.Context,
 	_ *mcp.CallToolRequest,
-	_ struct{},
+	input ListNodesInput,
 ) (*mcp.CallToolResult, any, error) {
+	if err := input.Validate(); err != nil {
+		return toolError(err.Error()), nil, nil
+	}
 	nodes, err := t.jenkins.ListNodes(ctx)
 	if err != nil {
 		return toolError(fmt.Sprintf("failed to list nodes: %v", err)), nil, nil
@@ -34,8 +37,11 @@ func (t *NodeTools) ListNodes(
 func (t *NodeTools) GetQueue(
 	ctx context.Context,
 	_ *mcp.CallToolRequest,
-	_ struct{},
+	input GetQueueInput,
 ) (*mcp.CallToolResult, any, error) {
+	if err := input.Validate(); err != nil {
+		return toolError(err.Error()), nil, nil
+	}
 	items, err := t.jenkins.GetQueue(ctx)
 	if err != nil {
 		return toolError(fmt.Sprintf("failed to get queue: %v", err)), nil, nil

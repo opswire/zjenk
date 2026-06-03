@@ -54,7 +54,7 @@ func (s *JenkinsSuite) SetupSuite() {
 
 	s.testJob = os.Getenv("JENKINS_TEST_JOB")
 	if s.testJob == "" {
-		if jobs, err := s.client.ListJobs(s.ctx); err == nil && len(jobs) > 0 {
+		if jobs, err := s.client.ListJobs(s.ctx, ""); err == nil && len(jobs) > 0 {
 			s.testJob = jobs[0].Name
 		}
 	}
@@ -69,7 +69,7 @@ func (s *JenkinsSuite) SetupSuite() {
 // --- Jobs ---
 
 func (s *JenkinsSuite) TestListJobs() {
-	jobs, err := s.client.ListJobs(s.ctx)
+	jobs, err := s.client.ListJobs(s.ctx, s.testJob)
 	s.NoError(err)
 	s.NotNil(jobs)
 	for _, j := range jobs {
