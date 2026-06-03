@@ -7,17 +7,15 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"mcp-jenkins/internal/client"
-	"mcp-jenkins/internal/config"
 	"mcp-jenkins/internal/dto"
 )
 
 type JobTools struct {
 	jenkins *client.Jenkins
-	cfg     *config.Config
 }
 
-func NewJobTools(j *client.Jenkins, cfg *config.Config) *JobTools {
-	return &JobTools{jenkins: j, cfg: cfg}
+func NewJobTools(j *client.Jenkins) *JobTools {
+	return &JobTools{jenkins: j}
 }
 
 // ListJobs returns all Jenkins jobs.
@@ -43,7 +41,7 @@ func (t *JobTools) GetJob(
 	if err := input.Validate(); err != nil {
 		return toolError(err.Error()), nil, nil
 	}
-	job, err := t.jenkins.GetJob(ctx, input.JobURL)
+	job, err := t.jenkins.GetJob(ctx, input.JobPath)
 	if err != nil {
 		return toolError(fmt.Sprintf("failed to get job: %v", err)), nil, nil
 	}

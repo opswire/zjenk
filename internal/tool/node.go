@@ -7,16 +7,14 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"mcp-jenkins/internal/client"
-	"mcp-jenkins/internal/config"
 )
 
 type NodeTools struct {
 	jenkins *client.Jenkins
-	cfg     *config.Config
 }
 
-func NewNodeTools(j *client.Jenkins, cfg *config.Config) *NodeTools {
-	return &NodeTools{jenkins: j, cfg: cfg}
+func NewNodeTools(j *client.Jenkins) *NodeTools {
+	return &NodeTools{jenkins: j}
 }
 
 // ListNodes — Out is `any` ([]dto.Node); see ListJobs for the reason.

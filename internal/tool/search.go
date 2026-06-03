@@ -9,17 +9,15 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"mcp-jenkins/internal/client"
-	"mcp-jenkins/internal/config"
 	"mcp-jenkins/internal/dto"
 )
 
 type SearchTools struct {
 	jenkins *client.Jenkins
-	cfg     *config.Config
 }
 
-func NewSearchTools(j *client.Jenkins, cfg *config.Config) *SearchTools {
-	return &SearchTools{jenkins: j, cfg: cfg}
+func NewSearchTools(j *client.Jenkins) *SearchTools {
+	return &SearchTools{jenkins: j}
 }
 
 // SearchLog — Out is `any` ([]dto.SearchMatch); see ListJobs for the reason.
@@ -32,7 +30,7 @@ func (t *SearchTools) SearchLog(
 		return toolError(err.Error()), nil, nil
 	}
 
-	log, err := t.jenkins.GetBuildLog(ctx, input.JobURL, input.BuildNumber)
+	log, err := t.jenkins.GetBuildLog(ctx, input.JobPath, input.BuildNumber)
 	if err != nil {
 		return toolError(fmt.Sprintf("failed to get build log: %v", err)), nil, nil
 	}

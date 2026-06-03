@@ -1,25 +1,30 @@
 package tool
 
+// JobPathInput is embedded by all inputs that reference a Jenkins job.
+type JobPathInput struct {
+	JobPath string `json:"job_path" jsonschema:"[Required] Путь к джобе без префикса /job/, например: my-job или folder/subfolder/my-job"`
+}
+
 type GetJobInput struct {
-	JobURL string `json:"job_url" jsonschema:"description=Full Jenkins job URL (e.g. http://jenkins:8080/job/my-job)"`
+	JobPathInput
 }
 
 type ListBuildsInput struct {
-	JobURL string `json:"job_url" jsonschema:"description=Full Jenkins job URL"`
+	JobPathInput
 }
 
 type BuildRefInput struct {
-	JobURL      string `json:"job_url"      jsonschema:"description=Full Jenkins job URL"`
-	BuildNumber int64  `json:"build_number" jsonschema:"description=Build number (positive integer)"`
+	JobPathInput
+	BuildNumber int64 `json:"build_number" jsonschema:"[Required] Номер сборки (целое положительное число)"`
 }
 
 type TriggerBuildInput struct {
-	JobURL string            `json:"job_url"          jsonschema:"description=Full Jenkins job URL"`
-	Params map[string]string `json:"params,omitempty" jsonschema:"description=Optional build parameters as key-value pairs"`
+	JobPathInput
+	Params map[string]string `json:"params,omitempty" jsonschema:"[Optional] Параметры запуска сборки в формате ключ-значение"`
 }
 
 type SearchLogInput struct {
-	JobURL      string `json:"job_url"      jsonschema:"description=Full Jenkins job URL"`
-	BuildNumber int64  `json:"build_number" jsonschema:"description=Build number (positive integer)"`
-	Pattern     string `json:"pattern"      jsonschema:"description=Regex pattern or substring to search for in the build log"`
+	JobPathInput
+	BuildNumber int64  `json:"build_number" jsonschema:"[Required] Номер сборки (целое положительное число)"`
+	Pattern     string `json:"pattern"      jsonschema:"[Required] Регулярное выражение или подстрока для поиска в логе сборки"`
 }

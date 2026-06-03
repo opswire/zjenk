@@ -33,7 +33,7 @@ type QueueItem struct {
 }
 
 type TriggerResult struct {
-	JobURL  string `json:"job_url"`
+	JobPath string `json:"job_path"`
 	QueueID int64  `json:"queue_id"`
 }
 

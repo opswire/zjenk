@@ -7,17 +7,15 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"mcp-jenkins/internal/client"
-	"mcp-jenkins/internal/config"
 	"mcp-jenkins/internal/dto"
 )
 
 type BuildTools struct {
 	jenkins *client.Jenkins
-	cfg     *config.Config
 }
 
-func NewBuildTools(j *client.Jenkins, cfg *config.Config) *BuildTools {
-	return &BuildTools{jenkins: j, cfg: cfg}
+func NewBuildTools(j *client.Jenkins) *BuildTools {
+	return &BuildTools{jenkins: j}
 }
 
 // ListBuilds — Out is `any` ([]dto.Build); see ListJobs for the reason.
@@ -29,7 +27,7 @@ func (t *BuildTools) ListBuilds(
 	if err := input.Validate(); err != nil {
 		return toolError(err.Error()), nil, nil
 	}
-	builds, err := t.jenkins.ListBuilds(ctx, input.JobURL)
+	builds, err := t.jenkins.ListBuilds(ctx, input.JobPath)
 	if err != nil {
 		return toolError(fmt.Sprintf("failed to list builds: %v", err)), nil, nil
 	}
@@ -44,7 +42,7 @@ func (t *BuildTools) GetBuild(
 	if err := input.Validate(); err != nil {
 		return toolError(err.Error()), nil, nil
 	}
-	build, err := t.jenkins.GetBuild(ctx, input.JobURL, input.BuildNumber)
+	build, err := t.jenkins.GetBuild(ctx, input.JobPath, input.BuildNumber)
 	if err != nil {
 		return toolError(fmt.Sprintf("failed to get build: %v", err)), nil, nil
 	}
@@ -60,7 +58,7 @@ func (t *BuildTools) GetBuildLog(
 	if err := input.Validate(); err != nil {
 		return toolError(err.Error()), nil, nil
 	}
-	log, err := t.jenkins.GetBuildLog(ctx, input.JobURL, input.BuildNumber)
+	log, err := t.jenkins.GetBuildLog(ctx, input.JobPath, input.BuildNumber)
 	if err != nil {
 		return toolError(fmt.Sprintf("failed to get build log: %v", err)), nil, nil
 	}
@@ -77,11 +75,11 @@ func (t *BuildTools) TriggerBuild(
 	if err := input.Validate(); err != nil {
 		return toolError(err.Error()), nil, nil
 	}
-	queueID, err := t.jenkins.TriggerBuild(ctx, input.JobURL, input.Params)
+	queueID, err := t.jenkins.TriggerBuild(ctx, input.JobPath, input.Params)
 	if err != nil {
 		return toolError(fmt.Sprintf("failed to trigger build: %v", err)), nil, nil
 	}
-	return nil, &dto.TriggerResult{JobURL: input.JobURL, QueueID: queueID}, nil
+	return nil, &dto.TriggerResult{JobPath: input.JobPath, QueueID: queueID}, nil
 }
 
 func (t *BuildTools) StopBuild(
@@ -92,7 +90,7 @@ func (t *BuildTools) StopBuild(
 	if err := input.Validate(); err != nil {
 		return toolError(err.Error()), nil, nil
 	}
-	if err := t.jenkins.StopBuild(ctx, input.JobURL, input.BuildNumber); err != nil {
+	if err := t.jenkins.StopBuild(ctx, input.JobPath, input.BuildNumber); err != nil {
 		return toolError(fmt.Sprintf("failed to stop build: %v", err)), nil, nil
 	}
 	return &mcp.CallToolResult{

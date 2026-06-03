@@ -16,20 +16,11 @@ type Jenkins struct {
 	http *resty.Client
 }
 
-func New(cfg *config.Config) (*Jenkins, error) {
+func New(cfg *config.Config) *Jenkins {
 	r := resty.New().
 		SetBaseURL(cfg.Jenkins.URL).
 		SetBasicAuth(cfg.Jenkins.Username, cfg.Jenkins.Password)
-
-	resp, err := r.R().SetContext(context.Background()).Get("/api/json")
-	if err != nil {
-		return nil, fmt.Errorf("connect to jenkins at %s: %w", cfg.Jenkins.URL, err)
-	}
-	if resp.IsError() {
-		return nil, fmt.Errorf("connect to jenkins at %s: HTTP %d", cfg.Jenkins.URL, resp.StatusCode())
-	}
-
-	return &Jenkins{http: r}, nil
+	return &Jenkins{http: r}
 }
 
 func (j *Jenkins) ListJobs(ctx context.Context) ([]dto.Job, error) {
@@ -53,34 +44,34 @@ func (j *Jenkins) ListJobs(ctx context.Context) ([]dto.Job, error) {
 	return result, nil
 }
 
-func (j *Jenkins) GetJob(ctx context.Context, jobURL string) (*dto.Job, error) {
+func (j *Jenkins) GetJob(ctx context.Context, jobPath string) (*dto.Job, error) {
 	var data apiJob
 	resp, err := j.http.R().
 		SetContext(ctx).
 		SetResult(&data).
-		Get(normalizeURL(jobURL) + "/api/json")
+		Get(jobAPIPath(jobPath) + "/api/json")
 	if err != nil {
-		return nil, fmt.Errorf("get job %q: %w", jobURL, err)
+		return nil, fmt.Errorf("get job %q: %w", jobPath, err)
 	}
 	if resp.IsError() {
-		return nil, fmt.Errorf("get job %q: HTTP %d", jobURL, resp.StatusCode())
+		return nil, fmt.Errorf("get job %q: HTTP %d", jobPath, resp.StatusCode())
 	}
 
 	return &dto.Job{Name: data.Name, URL: data.URL, Color: data.Color, InQueue: data.InQueue}, nil
 }
 
-func (j *Jenkins) ListBuilds(ctx context.Context, jobURL string) ([]dto.Build, error) {
+func (j *Jenkins) ListBuilds(ctx context.Context, jobPath string) ([]dto.Build, error) {
 	var data apiBuildsResponse
 	resp, err := j.http.R().
 		SetContext(ctx).
 		SetResult(&data).
 		SetQueryParam("tree", "builds[number,url,result,building,duration,timestamp,actions[causes[shortDescription]]]").
-		Get(normalizeURL(jobURL) + "/api/json")
+		Get(jobAPIPath(jobPath) + "/api/json")
 	if err != nil {
-		return nil, fmt.Errorf("list builds for %q: %w", jobURL, err)
+		return nil, fmt.Errorf("list builds for %q: %w", jobPath, err)
 	}
 	if resp.IsError() {
-		return nil, fmt.Errorf("list builds for %q: HTTP %d", jobURL, resp.StatusCode())
+		return nil, fmt.Errorf("list builds for %q: HTTP %d", jobPath, resp.StatusCode())
 	}
 
 	result := make([]dto.Build, len(data.Builds))
@@ -90,39 +81,39 @@ func (j *Jenkins) ListBuilds(ctx context.Context, jobURL string) ([]dto.Build, e
 	return result, nil
 }
 
-func (j *Jenkins) GetBuild(ctx context.Context, jobURL string, number int64) (*dto.Build, error) {
+func (j *Jenkins) GetBuild(ctx context.Context, jobPath string, number int64) (*dto.Build, error) {
 	var data apiBuild
 	resp, err := j.http.R().
 		SetContext(ctx).
 		SetResult(&data).
-		Get(fmt.Sprintf("%s/%d/api/json", normalizeURL(jobURL), number))
+		Get(fmt.Sprintf("%s/%d/api/json", jobAPIPath(jobPath), number))
 	if err != nil {
-		return nil, fmt.Errorf("get build #%d for %q: %w", number, jobURL, err)
+		return nil, fmt.Errorf("get build #%d for %q: %w", number, jobPath, err)
 	}
 	if resp.IsError() {
-		return nil, fmt.Errorf("get build #%d for %q: HTTP %d", number, jobURL, resp.StatusCode())
+		return nil, fmt.Errorf("get build #%d for %q: HTTP %d", number, jobPath, resp.StatusCode())
 	}
 
 	b := buildFromAPI(data)
 	return &b, nil
 }
 
-func (j *Jenkins) GetBuildLog(ctx context.Context, jobURL string, number int64) (string, error) {
+func (j *Jenkins) GetBuildLog(ctx context.Context, jobPath string, number int64) (string, error) {
 	resp, err := j.http.R().
 		SetContext(ctx).
-		Get(fmt.Sprintf("%s/%d/consoleText", normalizeURL(jobURL), number))
+		Get(fmt.Sprintf("%s/%d/consoleText", jobAPIPath(jobPath), number))
 	if err != nil {
-		return "", fmt.Errorf("get log for build #%d of %q: %w", number, jobURL, err)
+		return "", fmt.Errorf("get log for build #%d of %q: %w", number, jobPath, err)
 	}
 	if resp.IsError() {
-		return "", fmt.Errorf("get log for build #%d of %q: HTTP %d", number, jobURL, resp.StatusCode())
+		return "", fmt.Errorf("get log for build #%d of %q: HTTP %d", number, jobPath, resp.StatusCode())
 	}
 
 	return resp.String(), nil
 }
 
-func (j *Jenkins) TriggerBuild(ctx context.Context, jobURL string, params map[string]string) (int64, error) {
-	base := normalizeURL(jobURL)
+func (j *Jenkins) TriggerBuild(ctx context.Context, jobPath string, params map[string]string) (int64, error) {
+	base := jobAPIPath(jobPath)
 	endpoint := base + "/build"
 	if len(params) > 0 {
 		endpoint = base + "/buildWithParameters"
@@ -135,10 +126,10 @@ func (j *Jenkins) TriggerBuild(ctx context.Context, jobURL string, params map[st
 
 	resp, err := req.Post(endpoint)
 	if err != nil {
-		return 0, fmt.Errorf("trigger build for %q: %w", jobURL, err)
+		return 0, fmt.Errorf("trigger build for %q: %w", jobPath, err)
 	}
 	if resp.IsError() {
-		return 0, fmt.Errorf("trigger build for %q: HTTP %d", jobURL, resp.StatusCode())
+		return 0, fmt.Errorf("trigger build for %q: HTTP %d", jobPath, resp.StatusCode())
 	}
 
 	queueID, err := parseQueueID(resp.Header().Get("Location"))
@@ -148,15 +139,15 @@ func (j *Jenkins) TriggerBuild(ctx context.Context, jobURL string, params map[st
 	return queueID, nil
 }
 
-func (j *Jenkins) StopBuild(ctx context.Context, jobURL string, number int64) error {
+func (j *Jenkins) StopBuild(ctx context.Context, jobPath string, number int64) error {
 	resp, err := j.http.R().
 		SetContext(ctx).
-		Post(fmt.Sprintf("%s/%d/stop", normalizeURL(jobURL), number))
+		Post(fmt.Sprintf("%s/%d/stop", jobAPIPath(jobPath), number))
 	if err != nil {
-		return fmt.Errorf("stop build #%d for %q: %w", number, jobURL, err)
+		return fmt.Errorf("stop build #%d for %q: %w", number, jobPath, err)
 	}
 	if resp.IsError() {
-		return fmt.Errorf("stop build #%d for %q: HTTP %d", number, jobURL, resp.StatusCode())
+		return fmt.Errorf("stop build #%d for %q: HTTP %d", number, jobPath, resp.StatusCode())
 	}
 	return nil
 }
@@ -232,9 +223,11 @@ func buildCauses(b apiBuild) []string {
 	return causes
 }
 
-// normalizeURL strips a trailing slash so URL + "/api/json" is always valid.
-func normalizeURL(rawURL string) string {
-	return strings.TrimRight(rawURL, "/")
+// jobAPIPath converts a user-supplied job path (e.g. "folder/job-name") to
+// the Jenkins REST API path format (e.g. "/job/folder/job/job-name").
+func jobAPIPath(jobPath string) string {
+	parts := strings.Split(strings.Trim(jobPath, "/"), "/")
+	return "/job/" + strings.Join(parts, "/job/")
 }
 
 // parseQueueID extracts the numeric ID from a Jenkins Location header like ".../queue/item/42/".

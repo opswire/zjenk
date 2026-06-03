@@ -1,84 +1,39 @@
 # mcp-jenkins
 
-MCP server that exposes Jenkins as a set of tools for LLM agents (Claude, etc.).
+MCP-сервер, который предоставляет Jenkins как набор инструментов для LLM-агентов (Claude и др.).
 
-## Tools
+## Инструменты
 
-| Tool | Description |
-|---|---|
-| `jenkins_list_jobs` | List all jobs with name, URL and status |
-| `jenkins_get_job` | Get details of a job by name |
-| `jenkins_list_builds` | List all builds for a job |
-| `jenkins_get_build` | Get build details (result, duration, causes) |
-| `jenkins_get_build_log` | Get full console output of a build |
-| `jenkins_trigger_build` | Trigger a new build with optional parameters |
-| `jenkins_stop_build` | Abort a running build |
-| `jenkins_list_nodes` | List all agents/nodes with their status |
-| `jenkins_get_queue` | Get the current build queue |
-| `jenkins_search_log` | Search build log by regex or substring |
+| Инструмент              | Описание                                                   |
+|-------------------------|------------------------------------------------------------|
+| `jenkins_list_jobs`     | Список всех джоб с именем, URL и статусом                  |
+| `jenkins_get_job`       | Получить детали конкретной джобы                           |
+| `jenkins_list_builds`   | Список всех сборок джобы                                   |
+| `jenkins_get_build`     | Детали сборки (результат, длительность, причины)           |
+| `jenkins_get_build_log` | Полный вывод консоли сборки                                |
+| `jenkins_trigger_build` | Запустить новую сборку с опциональными параметрами         |
+| `jenkins_stop_build`    | Прервать выполняющуюся сборку                              |
+| `jenkins_list_nodes`    | Список всех агентов/нод с их статусом                      |
+| `jenkins_get_queue`     | Текущая очередь сборок                                     |
+| `jenkins_search_log`    | Поиск в логе сборки по регулярному выражению или подстроке |
 
-## Requirements
+### Параметр job_path
 
-- Go 1.23+
-- Jenkins with API access (URL + username + API token)
+Большинство инструментов принимают `job_path` — путь к джобе **без** префикса `/job/`.
 
-## Build
+| Тип джобы       | Пример job_path           |
+|-----------------|---------------------------|
+| Простая джоба   | `my-job`                  |
+| Джоба в папке   | `folder/my-job`           |
+| Вложенные папки | `folder/subfolder/my-job` |
 
-```bash
-go build -o mcp-jenkins ./cmd/
-```
+Сервер автоматически преобразует путь в формат Jenkins REST API: `folder/my-job` → `/job/folder/job/my-job`.
 
-## Configuration
+Путь к конфигу можно переопределить через переменную окружения `CONFIG_PATH`.
 
-Copy `config.yaml` and fill in your Jenkins credentials:
+## Интеграционные тесты
 
-```yaml
-jenkins:
-  url: "http://your-jenkins:8080"
-  username: "admin"
-  password: "your-api-token"   # Jenkins API token, not password
-
-mcp:
-  name: "jenkins"
-  version: "1.0.0"
-```
-
-Config path can be overridden via the `CONFIG_PATH` environment variable.
-
-### Disabling tools
-
-Each tool can be disabled individually in `config.yaml`:
-
-```yaml
-tools:
-  jenkins_get_build_log:
-    is-enabled: false
-    name: jenkins_get_build_log
-    description:
-      ru: "..."
-      en: "..."
-```
-
-## Claude Desktop
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "jenkins": {
-      "command": "/path/to/mcp-jenkins",
-      "env": {
-        "CONFIG_PATH": "/path/to/config.yaml"
-      }
-    }
-  }
-}
-```
-
-## Integration tests
-
-Tests connect to a real Jenkins instance and skip automatically if `JENKINS_URL` is not set.
+Тесты подключаются к реальному Jenkins и пропускаются автоматически, если не задан `JENKINS_URL`.
 
 ```bash
 JENKINS_URL=http://localhost:8080 \
@@ -87,26 +42,11 @@ JENKINS_PASSWORD=your-api-token \
 go test ./internal/client/ -v
 ```
 
-| Variable | Required | Description |
-|---|---|---|
-| `JENKINS_URL` | yes | Jenkins base URL |
-| `JENKINS_USERNAME` | yes | Username |
-| `JENKINS_PASSWORD` | yes | API token |
-| `JENKINS_TEST_JOB` | no | Job name for read tests (auto-discovered if empty) |
-| `JENKINS_ALLOW_MUTATIONS` | no | Set to `true` to enable `TriggerBuild` tests |
+| Переменная                | Обязательная | Описание                                                    |
+|---------------------------|--------------|-------------------------------------------------------------|
+| `JENKINS_URL`             | да           | Базовый URL Jenkins                                         |
+| `JENKINS_USERNAME`        | да           | Имя пользователя                                            |
+| `JENKINS_PASSWORD`        | да           | API-токен                                                   |
+| `JENKINS_TEST_JOB`        | нет          | Путь к джобе для тестов чтения (определяется автоматически) |
+| `JENKINS_ALLOW_MUTATIONS` | нет          | Установите `true` чтобы включить тест `TriggerBuild`        |
 
-## Project structure
-
-```
-cmd/main.go                  — entry point: fx wiring, tool registrations
-config.yaml                  — Jenkins credentials, MCP metadata, tool config
-internal/
-  config/config.go           — config loading and validation
-  client/jenkins.go          — Jenkins API client (gojenkins + resty)
-  tool/
-    job.go                   — jenkins_list_jobs, jenkins_get_job
-    build.go                 — list/get/trigger/stop/log builds
-    node.go                  — jenkins_list_nodes, jenkins_get_queue
-    search.go                — jenkins_search_log
-server/server.go             — MCP server lifecycle
-```
