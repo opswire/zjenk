@@ -46,16 +46,16 @@ func registerTools(
 	}
 
 	for _, e := range []entry{
-		{"jenkins_list_jobs", func() { mcp.AddTool(s, toolDef(cfg, "jenkins_list_jobs"), jobs.ListJobs) }},
-		{"jenkins_get_job", func() { mcp.AddTool(s, toolDef(cfg, "jenkins_get_job"), jobs.GetJob) }},
-		{"jenkins_list_builds", func() { mcp.AddTool(s, toolDef(cfg, "jenkins_list_builds"), builds.ListBuilds) }},
-		{"jenkins_get_build", func() { mcp.AddTool(s, toolDef(cfg, "jenkins_get_build"), builds.GetBuild) }},
-		{"jenkins_get_build_log", func() { mcp.AddTool(s, toolDef(cfg, "jenkins_get_build_log"), builds.GetBuildLog) }},
-		{"jenkins_trigger_build", func() { mcp.AddTool(s, toolDef(cfg, "jenkins_trigger_build"), builds.TriggerBuild) }},
-		{"jenkins_stop_build", func() { mcp.AddTool(s, toolDef(cfg, "jenkins_stop_build"), builds.StopBuild) }},
-		{"jenkins_list_nodes", func() { mcp.AddTool(s, toolDef(cfg, "jenkins_list_nodes"), nodes.ListNodes) }},
-		{"jenkins_get_queue", func() { mcp.AddTool(s, toolDef(cfg, "jenkins_get_queue"), nodes.GetQueue) }},
-		{"jenkins_search_log", func() { mcp.AddTool(s, toolDef(cfg, "jenkins_search_log"), search.SearchLog) }},
+		{"list_jobs", func() { mcp.AddTool(s, toolDef(cfg, "list_jobs"), jobs.ListJobs) }},
+		{"get_job", func() { mcp.AddTool(s, toolDef(cfg, "get_job"), jobs.GetJob) }},
+		{"list_builds", func() { mcp.AddTool(s, toolDef(cfg, "list_builds"), builds.ListBuilds) }},
+		{"get_build", func() { mcp.AddTool(s, toolDef(cfg, "get_build"), builds.GetBuild) }},
+		{"get_build_log", func() { mcp.AddTool(s, toolDef(cfg, "get_build_log"), builds.GetBuildLog) }},
+		{"trigger_build", func() { mcp.AddTool(s, toolDef(cfg, "trigger_build"), builds.TriggerBuild) }},
+		{"stop_build", func() { mcp.AddTool(s, toolDef(cfg, "stop_build"), builds.StopBuild) }},
+		{"list_nodes", func() { mcp.AddTool(s, toolDef(cfg, "list_nodes"), nodes.ListNodes) }},
+		{"get_queue", func() { mcp.AddTool(s, toolDef(cfg, "get_queue"), nodes.GetQueue) }},
+		{"search_log", func() { mcp.AddTool(s, toolDef(cfg, "search_log"), search.SearchLog) }},
 	} {
 		if cfg.Tool(e.key).IsEnabled {
 			e.fn()

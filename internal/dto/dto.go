@@ -1,10 +1,18 @@
 package dto
 
+type ParameterDefinition struct {
+	Name         string `json:"name"`
+	Type         string `json:"type"`
+	Description  string `json:"description,omitempty"`
+	DefaultValue string `json:"default_value,omitempty"`
+}
+
 type Job struct {
-	Name    string `json:"name"`
-	URL     string `json:"url"`
-	Color   string `json:"color,omitempty"`
-	InQueue bool   `json:"in_queue"`
+	Name       string                `json:"name"`
+	URL        string                `json:"url"`
+	Color      string                `json:"color,omitempty"`
+	InQueue    bool                  `json:"in_queue"`
+	Parameters []ParameterDefinition `json:"parameters,omitempty"`
 }
 
 type Build struct {
@@ -12,7 +20,7 @@ type Build struct {
 	URL       string   `json:"url"`
 	Result    string   `json:"result,omitempty"` // empty while building
 	Building  bool     `json:"building"`
-	Duration  float64  `json:"duration_ms"`
+	Duration  int64    `json:"duration_ms"`
 	Timestamp int64    `json:"timestamp_ms"`
 	Causes    []string `json:"causes,omitempty"`
 }

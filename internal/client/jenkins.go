@@ -14,15 +14,31 @@ import (
 )
 
 type Jenkins struct {
-	http    *resty.Client
-	baseURL string
+	jsonClient *resty.Client
+	baseURL    string
 }
 
 func New(cfg *config.Config) *Jenkins {
 	r := resty.New().
 		SetBaseURL(cfg.Jenkins.URL).
 		SetBasicAuth(cfg.Jenkins.Username, cfg.Jenkins.Password)
-	return &Jenkins{http: r, baseURL: strings.TrimRight(cfg.Jenkins.URL, "/")}
+
+	return &Jenkins{jsonClient: r, baseURL: strings.TrimRight(cfg.Jenkins.URL, "/")}
+}
+
+// setCrumb fetches the Jenkins CSRF crumb and sets it on req.
+// If the Jenkins instance has CSRF disabled, the request proceeds unchanged.
+func (j *Jenkins) setCrumb(ctx context.Context, req *resty.Request) {
+	var data struct {
+		CrumbRequestField string `json:"crumbRequestField"`
+		Crumb             string `json:"crumb"`
+	}
+
+	resp, err := j.jsonClient.R().SetContext(ctx).SetResult(&data).Get("/crumbIssuer/api/json")
+	if err != nil || resp.IsError() || data.CrumbRequestField == "" {
+		return
+	}
+	req.SetHeader(data.CrumbRequestField, data.Crumb)
 }
 
 // subdomainURL строит URL с projectName как поддоменом: "proj" + "https://jenkins.domain.com" → "https://proj.jenkins.domain.com".
@@ -31,7 +47,9 @@ func (j *Jenkins) subdomainURL(projectName string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("parse base url: %w", err)
 	}
+
 	u.Host = projectName + "." + u.Host
+
 	return u.String(), nil
 }
 
@@ -42,15 +60,14 @@ func (j *Jenkins) ListJobs(ctx context.Context, projectName string) ([]dto.Job, 
 	}
 
 	var data apiJobsResponse
-	resp, err := j.http.R().
+
+	resp, err := j.jsonClient.R().
 		SetContext(ctx).
 		SetResult(&data).
-		SetQueryParam("tree", "jobs[name,url,color,inQueue]").
-		Get(base + "/api/json")
+		Get(base + "/api/json?tree=jobs[name,url,color,inQueue]")
 	if err != nil {
 		return nil, fmt.Errorf("list jobs: %w", err)
-	}
-	if resp.IsError() {
+	} else if resp.IsError() {
 		return nil, fmt.Errorf("list jobs: HTTP %d", resp.StatusCode())
 	}
 
@@ -58,36 +75,51 @@ func (j *Jenkins) ListJobs(ctx context.Context, projectName string) ([]dto.Job, 
 	for i, jb := range data.Jobs {
 		result[i] = dto.Job{Name: jb.Name, URL: jb.URL, Color: jb.Color, InQueue: jb.InQueue}
 	}
+
 	return result, nil
 }
 
 func (j *Jenkins) GetJob(ctx context.Context, jobPath string) (*dto.Job, error) {
 	var data apiJob
-	resp, err := j.http.R().
+
+	resp, err := j.jsonClient.R().
 		SetContext(ctx).
 		SetResult(&data).
-		Get(jobAPIPath(jobPath) + "/api/json")
+		Get(jobAPIPath(jobPath) + "/api/json?tree=name,url,color,inQueue,property[parameterDefinitions[name,type,description,defaultParameterValue[value]]]")
 	if err != nil {
 		return nil, fmt.Errorf("get job %q: %w", jobPath, err)
-	}
-	if resp.IsError() {
+	} else if resp.IsError() {
 		return nil, fmt.Errorf("get job %q: HTTP %d", jobPath, resp.StatusCode())
 	}
 
-	return &dto.Job{Name: data.Name, URL: data.URL, Color: data.Color, InQueue: data.InQueue}, nil
+	job := &dto.Job{Name: data.Name, URL: data.URL, Color: data.Color, InQueue: data.InQueue}
+	for _, prop := range data.Property {
+		for _, p := range prop.ParameterDefinitions {
+			def := dto.ParameterDefinition{
+				Name:        p.Name,
+				Type:        p.Type,
+				Description: p.Description,
+			}
+			if p.DefaultParameterValue.Value != nil {
+				def.DefaultValue = fmt.Sprintf("%v", p.DefaultParameterValue.Value)
+			}
+			job.Parameters = append(job.Parameters, def)
+		}
+	}
+
+	return job, nil
 }
 
 func (j *Jenkins) ListBuilds(ctx context.Context, jobPath string) ([]dto.Build, error) {
 	var data apiBuildsResponse
-	resp, err := j.http.R().
+
+	resp, err := j.jsonClient.R().
 		SetContext(ctx).
 		SetResult(&data).
-		SetQueryParam("tree", "builds[number,url,result,building,duration,timestamp,actions[causes[shortDescription]]]").
-		Get(jobAPIPath(jobPath) + "/api/json")
+		Get(jobAPIPath(jobPath) + "/api/json?tree=builds[number,url,result,building,duration,timestamp,actions[causes[shortDescription]]]")
 	if err != nil {
 		return nil, fmt.Errorf("list builds for %q: %w", jobPath, err)
-	}
-	if resp.IsError() {
+	} else if resp.IsError() {
 		return nil, fmt.Errorf("list builds for %q: HTTP %d", jobPath, resp.StatusCode())
 	}
 
@@ -95,34 +127,35 @@ func (j *Jenkins) ListBuilds(ctx context.Context, jobPath string) ([]dto.Build, 
 	for i, b := range data.Builds {
 		result[i] = buildFromAPI(b)
 	}
+
 	return result, nil
 }
 
 func (j *Jenkins) GetBuild(ctx context.Context, jobPath string, number int64) (*dto.Build, error) {
 	var data apiBuild
-	resp, err := j.http.R().
+
+	resp, err := j.jsonClient.R().
 		SetContext(ctx).
 		SetResult(&data).
-		Get(fmt.Sprintf("%s/%d/api/json", jobAPIPath(jobPath), number))
+		Get(fmt.Sprintf("%s/%d/api/json?tree=number,url,result,building,duration,timestamp,actions[causes[shortDescription]]", jobAPIPath(jobPath), number))
 	if err != nil {
 		return nil, fmt.Errorf("get build #%d for %q: %w", number, jobPath, err)
-	}
-	if resp.IsError() {
+	} else if resp.IsError() {
 		return nil, fmt.Errorf("get build #%d for %q: HTTP %d", number, jobPath, resp.StatusCode())
 	}
 
 	b := buildFromAPI(data)
+
 	return &b, nil
 }
 
 func (j *Jenkins) GetBuildLog(ctx context.Context, jobPath string, number int64) (string, error) {
-	resp, err := j.http.R().
+	resp, err := j.jsonClient.R().
 		SetContext(ctx).
 		Get(fmt.Sprintf("%s/%d/consoleText", jobAPIPath(jobPath), number))
 	if err != nil {
 		return "", fmt.Errorf("get log for build #%d of %q: %w", number, jobPath, err)
-	}
-	if resp.IsError() {
+	} else if resp.IsError() {
 		return "", fmt.Errorf("get log for build #%d of %q: HTTP %d", number, jobPath, resp.StatusCode())
 	}
 
@@ -131,21 +164,28 @@ func (j *Jenkins) GetBuildLog(ctx context.Context, jobPath string, number int64)
 
 func (j *Jenkins) TriggerBuild(ctx context.Context, jobPath string, params map[string]string) (int64, error) {
 	base := jobAPIPath(jobPath)
+
+	// Parameterised jobs must always use /buildWithParameters (even with empty params),
+	// otherwise Jenkins returns 405.
+	job, err := j.GetJob(ctx, jobPath)
+	if err != nil {
+		return 0, fmt.Errorf("trigger build for %q: %w", jobPath, err)
+	}
 	endpoint := base + "/build"
-	if len(params) > 0 {
+	if len(job.Parameters) > 0 || len(params) > 0 {
 		endpoint = base + "/buildWithParameters"
 	}
 
-	req := j.http.R().SetContext(ctx)
+	req := j.jsonClient.R().SetContext(ctx)
+	j.setCrumb(ctx, req)
 	if len(params) > 0 {
-		req = req.SetFormData(params)
+		req.SetFormData(params)
 	}
 
 	resp, err := req.Post(endpoint)
 	if err != nil {
 		return 0, fmt.Errorf("trigger build for %q: %w", jobPath, err)
-	}
-	if resp.IsError() {
+	} else if resp.IsError() {
 		return 0, fmt.Errorf("trigger build for %q: HTTP %d", jobPath, resp.StatusCode())
 	}
 
@@ -153,19 +193,21 @@ func (j *Jenkins) TriggerBuild(ctx context.Context, jobPath string, params map[s
 	if err != nil {
 		return 0, fmt.Errorf("parse queue location: %w", err)
 	}
+
 	return queueID, nil
 }
 
 func (j *Jenkins) StopBuild(ctx context.Context, jobPath string, number int64) error {
-	resp, err := j.http.R().
-		SetContext(ctx).
-		Post(fmt.Sprintf("%s/%d/stop", jobAPIPath(jobPath), number))
+	req := j.jsonClient.R().SetContext(ctx)
+	j.setCrumb(ctx, req)
+
+	resp, err := req.Post(fmt.Sprintf("%s/%d/stop", jobAPIPath(jobPath), number))
 	if err != nil {
 		return fmt.Errorf("stop build #%d for %q: %w", number, jobPath, err)
-	}
-	if resp.IsError() {
+	} else if resp.IsError() {
 		return fmt.Errorf("stop build #%d for %q: HTTP %d", number, jobPath, resp.StatusCode())
 	}
+
 	return nil
 }
 
@@ -176,15 +218,14 @@ func (j *Jenkins) ListNodes(ctx context.Context, projectName string) ([]dto.Node
 	}
 
 	var data apiNodesResponse
-	resp, err := j.http.R().
+
+	resp, err := j.jsonClient.R().
 		SetContext(ctx).
 		SetResult(&data).
-		SetQueryParam("tree", "computer[displayName,offline,temporarilyOffline,numExecutors,offlineCauseReason]").
-		Get(base + "/computer/api/json")
+		Get(base + "/computer/api/json?tree=computer[displayName,offline,temporarilyOffline,numExecutors,offlineCauseReason]")
 	if err != nil {
 		return nil, fmt.Errorf("list nodes: %w", err)
-	}
-	if resp.IsError() {
+	} else if resp.IsError() {
 		return nil, fmt.Errorf("list nodes: HTTP %d", resp.StatusCode())
 	}
 
@@ -198,6 +239,7 @@ func (j *Jenkins) ListNodes(ctx context.Context, projectName string) ([]dto.Node
 			OfflineCauseReason: n.OfflineCauseReason,
 		}
 	}
+
 	return result, nil
 }
 
@@ -208,14 +250,14 @@ func (j *Jenkins) GetQueue(ctx context.Context, projectName string) ([]dto.Queue
 	}
 
 	var data apiQueueResponse
-	resp, err := j.http.R().
+
+	resp, err := j.jsonClient.R().
 		SetContext(ctx).
 		SetResult(&data).
-		Get(base + "/queue/api/json")
+		Get(base + "/queue/api/json?tree=items[id,task[name],why,stuck]")
 	if err != nil {
 		return nil, fmt.Errorf("get queue: %w", err)
-	}
-	if resp.IsError() {
+	} else if resp.IsError() {
 		return nil, fmt.Errorf("get queue: HTTP %d", resp.StatusCode())
 	}
 
@@ -223,6 +265,7 @@ func (j *Jenkins) GetQueue(ctx context.Context, projectName string) ([]dto.Queue
 	for i, item := range data.Items {
 		result[i] = dto.QueueItem{ID: item.ID, Task: item.Task.Name, Why: item.Why, Stuck: item.Stuck}
 	}
+
 	return result, nil
 }
 
@@ -247,6 +290,7 @@ func buildCauses(b apiBuild) []string {
 			}
 		}
 	}
+
 	return causes
 }
 
@@ -254,6 +298,7 @@ func buildCauses(b apiBuild) []string {
 // the Jenkins REST API path format (e.g. "/job/folder/job/job-name").
 func jobAPIPath(jobPath string) string {
 	parts := strings.Split(strings.Trim(jobPath, "/"), "/")
+
 	return "/job/" + strings.Join(parts, "/job/")
 }
 
@@ -264,5 +309,6 @@ func parseQueueID(location string) (int64, error) {
 		return 0, fmt.Errorf("empty location header")
 	}
 	parts := strings.Split(trimmed, "/")
+
 	return strconv.ParseInt(parts[len(parts)-1], 10, 64)
 }

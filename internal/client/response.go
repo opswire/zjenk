@@ -2,11 +2,25 @@ package client
 
 // Jenkins REST API wire types — used only inside the client package.
 
+type apiParameterDefinition struct {
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Description string `json:"description"`
+	DefaultParameterValue struct {
+		Value interface{} `json:"value"`
+	} `json:"defaultParameterValue"`
+}
+
+type apiJobProperty struct {
+	ParameterDefinitions []apiParameterDefinition `json:"parameterDefinitions"`
+}
+
 type apiJob struct {
-	Name    string `json:"name"`
-	URL     string `json:"url"`
-	Color   string `json:"color"`
-	InQueue bool   `json:"inQueue"`
+	Name     string           `json:"name"`
+	URL      string           `json:"url"`
+	Color    string           `json:"color"`
+	InQueue  bool             `json:"inQueue"`
+	Property []apiJobProperty `json:"property"`
 }
 
 type apiJobsResponse struct {
@@ -24,7 +38,7 @@ type apiBuild struct {
 	URL       string           `json:"url"`
 	Result    string           `json:"result"`
 	Building  bool             `json:"building"`
-	Duration  float64          `json:"duration"`
+	Duration  int64            `json:"duration"`
 	Timestamp int64            `json:"timestamp"`
 	Actions   []apiBuildAction `json:"actions"`
 }
