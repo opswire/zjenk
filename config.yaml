@@ -20,6 +20,12 @@ tools:
     description:
       ru: "Получить детали конкретной задачи Jenkins по имени"
       en: "Get details of a specific Jenkins job by name"
+  get_last_build:
+    is-enabled: true
+    name: get_last_build
+    description:
+      ru: "Получить последнюю сборку джобы"
+      en: "Get the last build of a job"
   list_builds:
     is-enabled: true
     name: list_builds

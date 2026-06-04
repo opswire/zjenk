@@ -48,6 +48,7 @@ func registerTools(
 	for _, e := range []entry{
 		{"list_jobs", func() { mcp.AddTool(s, toolDef(cfg, "list_jobs"), jobs.ListJobs) }},
 		{"get_job", func() { mcp.AddTool(s, toolDef(cfg, "get_job"), jobs.GetJob) }},
+		{"get_last_build", func() { mcp.AddTool(s, toolDef(cfg, "get_last_build"), builds.GetLastBuild) }},
 		{"list_builds", func() { mcp.AddTool(s, toolDef(cfg, "list_builds"), builds.ListBuilds) }},
 		{"get_build", func() { mcp.AddTool(s, toolDef(cfg, "get_build"), builds.GetBuild) }},
 		{"get_build_log", func() { mcp.AddTool(s, toolDef(cfg, "get_build_log"), builds.GetBuildLog) }},

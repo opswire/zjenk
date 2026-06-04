@@ -35,6 +35,12 @@ func (i ListBuildsInput) Validate() error {
 	)
 }
 
+func (i GetLastBuildInput) Validate() error {
+	return validation.ValidateStruct(&i,
+		validation.Field(&i.JobPath, jobPathRules...),
+	)
+}
+
 func (i BuildRefInput) Validate() error {
 	return validation.ValidateStruct(&i,
 		validation.Field(&i.JobPath, jobPathRules...),

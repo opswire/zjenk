@@ -23,6 +23,10 @@ type ListBuildsInput struct {
 	JobPathInput
 }
 
+type GetLastBuildInput struct {
+	JobPathInput
+}
+
 type BuildRefInput struct {
 	JobPathInput
 	BuildNumber int64 `json:"build_number" jsonschema:"[Required] Номер сборки (целое положительное число)"`

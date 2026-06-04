@@ -18,6 +18,21 @@ func NewBuildTools(j *client.Jenkins) *BuildTools {
 	return &BuildTools{jenkins: j}
 }
 
+func (t *BuildTools) GetLastBuild(
+	ctx context.Context,
+	_ *mcp.CallToolRequest,
+	input GetLastBuildInput,
+) (*mcp.CallToolResult, *dto.Build, error) {
+	if err := input.Validate(); err != nil {
+		return toolError(err.Error()), nil, nil
+	}
+	build, err := t.jenkins.GetLastBuild(ctx, input.JobPath)
+	if err != nil {
+		return toolError(fmt.Sprintf("failed to get last build: %v", err)), nil, nil
+	}
+	return nil, build, nil
+}
+
 // ListBuilds — Out is `any` ([]dto.Build); see ListJobs for the reason.
 func (t *BuildTools) ListBuilds(
 	ctx context.Context,

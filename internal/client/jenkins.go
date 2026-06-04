@@ -59,7 +59,7 @@ func (j *Jenkins) ListJobs(ctx context.Context, projectName string) ([]dto.Job, 
 		return nil, err
 	}
 
-	var data apiJobsResponse
+	var data jobsResponse
 
 	resp, err := j.jsonClient.R().
 		SetContext(ctx).
@@ -80,19 +80,30 @@ func (j *Jenkins) ListJobs(ctx context.Context, projectName string) ([]dto.Job, 
 }
 
 func (j *Jenkins) GetJob(ctx context.Context, jobPath string) (*dto.Job, error) {
-	var data apiJob
+	var data job
 
 	resp, err := j.jsonClient.R().
 		SetContext(ctx).
 		SetResult(&data).
-		Get(jobAPIPath(jobPath) + "/api/json?tree=name,url,color,inQueue,property[parameterDefinitions[name,type,description,defaultParameterValue[value]]]")
+		Get(jobAPIPath(jobPath) + "/api/json?tree=name,url,color,inQueue,buildable,description,nextBuildNumber,lastBuild[number,url],property[parameterDefinitions[name,type,description,defaultParameterValue[name,value]]]")
 	if err != nil {
 		return nil, fmt.Errorf("get job %q: %w", jobPath, err)
 	} else if resp.IsError() {
 		return nil, fmt.Errorf("get job %q: HTTP %d", jobPath, resp.StatusCode())
 	}
 
-	job := &dto.Job{Name: data.Name, URL: data.URL, Color: data.Color, InQueue: data.InQueue}
+	job := &dto.Job{
+		Name:            data.Name,
+		URL:             data.URL,
+		Color:           data.Color,
+		InQueue:         data.InQueue,
+		Buildable:       data.Buildable,
+		Description:     data.Description,
+		NextBuildNumber: data.NextBuildNumber,
+	}
+	if data.LastBuild != nil {
+		job.LastBuild = &dto.JobBuild{Number: data.LastBuild.Number, URL: data.LastBuild.URL}
+	}
 	for _, prop := range data.Property {
 		for _, p := range prop.ParameterDefinitions {
 			def := dto.ParameterDefinition{
@@ -110,13 +121,31 @@ func (j *Jenkins) GetJob(ctx context.Context, jobPath string) (*dto.Job, error) 
 	return job, nil
 }
 
-func (j *Jenkins) ListBuilds(ctx context.Context, jobPath string) ([]dto.Build, error) {
-	var data apiBuildsResponse
+func (j *Jenkins) GetLastBuild(ctx context.Context, jobPath string) (*dto.Build, error) {
+	var data build
 
 	resp, err := j.jsonClient.R().
 		SetContext(ctx).
 		SetResult(&data).
-		Get(jobAPIPath(jobPath) + "/api/json?tree=builds[number,url,result,building,duration,timestamp,actions[causes[shortDescription]]]")
+		Get(jobAPIPath(jobPath) + "/lastBuild/api/json?tree=number,url,displayName,result,building,duration,estimatedDuration,timestamp,queueId,builtOn,actions[causes[shortDescription]]")
+	if err != nil {
+		return nil, fmt.Errorf("get last build for %q: %w", jobPath, err)
+	} else if resp.IsError() {
+		return nil, fmt.Errorf("get last build for %q: HTTP %d", jobPath, resp.StatusCode())
+	}
+
+	b := buildFromAPI(data)
+
+	return &b, nil
+}
+
+func (j *Jenkins) ListBuilds(ctx context.Context, jobPath string) ([]dto.Build, error) {
+	var data buildsResponse
+
+	resp, err := j.jsonClient.R().
+		SetContext(ctx).
+		SetResult(&data).
+		Get(jobAPIPath(jobPath) + "/api/json?tree=builds[number,url,displayName,result,building,duration,estimatedDuration,timestamp,queueId,builtOn,actions[causes[shortDescription]]]")
 	if err != nil {
 		return nil, fmt.Errorf("list builds for %q: %w", jobPath, err)
 	} else if resp.IsError() {
@@ -132,12 +161,12 @@ func (j *Jenkins) ListBuilds(ctx context.Context, jobPath string) ([]dto.Build, 
 }
 
 func (j *Jenkins) GetBuild(ctx context.Context, jobPath string, number int64) (*dto.Build, error) {
-	var data apiBuild
+	var data build
 
 	resp, err := j.jsonClient.R().
 		SetContext(ctx).
 		SetResult(&data).
-		Get(fmt.Sprintf("%s/%d/api/json?tree=number,url,result,building,duration,timestamp,actions[causes[shortDescription]]", jobAPIPath(jobPath), number))
+		Get(fmt.Sprintf("%s/%d/api/json?tree=number,url,displayName,result,building,duration,estimatedDuration,timestamp,queueId,builtOn,actions[causes[shortDescription]]", jobAPIPath(jobPath), number))
 	if err != nil {
 		return nil, fmt.Errorf("get build #%d for %q: %w", number, jobPath, err)
 	} else if resp.IsError() {
@@ -217,12 +246,12 @@ func (j *Jenkins) ListNodes(ctx context.Context, projectName string) ([]dto.Node
 		return nil, err
 	}
 
-	var data apiNodesResponse
+	var data nodesResponse
 
 	resp, err := j.jsonClient.R().
 		SetContext(ctx).
 		SetResult(&data).
-		Get(base + "/computer/api/json?tree=computer[displayName,offline,temporarilyOffline,numExecutors,offlineCauseReason]")
+		Get(base + "/computer/api/json?tree=computer[displayName,offline,temporarilyOffline,idle,numExecutors,offlineCauseReason]")
 	if err != nil {
 		return nil, fmt.Errorf("list nodes: %w", err)
 	} else if resp.IsError() {
@@ -235,6 +264,7 @@ func (j *Jenkins) ListNodes(ctx context.Context, projectName string) ([]dto.Node
 			Name:               n.DisplayName,
 			Offline:            n.Offline,
 			TemporarilyOffline: n.TemporarilyOffline,
+			Idle:               n.Idle,
 			NumExecutors:       n.NumExecutors,
 			OfflineCauseReason: n.OfflineCauseReason,
 		}
@@ -249,12 +279,12 @@ func (j *Jenkins) GetQueue(ctx context.Context, projectName string) ([]dto.Queue
 		return nil, err
 	}
 
-	var data apiQueueResponse
+	var data queueResponse
 
 	resp, err := j.jsonClient.R().
 		SetContext(ctx).
 		SetResult(&data).
-		Get(base + "/queue/api/json?tree=items[id,task[name],why,stuck]")
+		Get(base + "/queue/api/json?tree=items[id,task[name],why,stuck,blocked,buildable,inQueueSince]")
 	if err != nil {
 		return nil, fmt.Errorf("get queue: %w", err)
 	} else if resp.IsError() {
@@ -263,25 +293,37 @@ func (j *Jenkins) GetQueue(ctx context.Context, projectName string) ([]dto.Queue
 
 	result := make([]dto.QueueItem, len(data.Items))
 	for i, item := range data.Items {
-		result[i] = dto.QueueItem{ID: item.ID, Task: item.Task.Name, Why: item.Why, Stuck: item.Stuck}
+		result[i] = dto.QueueItem{
+			ID:           item.ID,
+			Task:         item.Task.Name,
+			Why:          item.Why,
+			Stuck:        item.Stuck,
+			Blocked:      item.Blocked,
+			Buildable:    item.Buildable,
+			InQueueSince: item.InQueueSince,
+		}
 	}
 
 	return result, nil
 }
 
-func buildFromAPI(b apiBuild) dto.Build {
+func buildFromAPI(b build) dto.Build {
 	return dto.Build{
-		Number:    b.Number,
-		URL:       b.URL,
-		Result:    b.Result,
-		Building:  b.Building,
-		Duration:  b.Duration,
-		Timestamp: b.Timestamp,
-		Causes:    buildCauses(b),
+		Number:            b.Number,
+		URL:               b.URL,
+		DisplayName:       b.DisplayName,
+		Result:            b.Result,
+		Building:          b.Building,
+		Duration:          b.Duration,
+		EstimatedDuration: b.EstimatedDuration,
+		Timestamp:         b.Timestamp,
+		QueueID:           b.QueueID,
+		BuiltOn:           b.BuiltOn,
+		Causes:            buildCauses(b),
 	}
 }
 
-func buildCauses(b apiBuild) []string {
+func buildCauses(b build) []string {
 	var causes []string
 	for _, action := range b.Actions {
 		for _, cause := range action.Causes {
