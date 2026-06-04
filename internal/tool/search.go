@@ -9,21 +9,17 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"mcp-jenkins/internal/client"
+	"mcp-jenkins/internal/config"
 	"mcp-jenkins/internal/dto"
 )
 
 type SearchTools struct {
-	jenkins                 *client.Jenkins
-	maxContextLines         int64
-	maxSearchResultsPerPage int64
+	jenkins *client.Jenkins
+	cfg     *config.Config
 }
 
-func NewSearchTools(j *client.Jenkins, maxContextLines, maxSearchResultsPerPage int64) *SearchTools {
-	return &SearchTools{
-		jenkins:                 j,
-		maxContextLines:         maxContextLines,
-		maxSearchResultsPerPage: maxSearchResultsPerPage,
-	}
+func NewSearchTools(j *client.Jenkins, cfg *config.Config) *SearchTools {
+	return &SearchTools{jenkins: j, cfg: cfg}
 }
 
 func (t *SearchTools) SearchLog(
@@ -56,8 +52,8 @@ func (t *SearchTools) SearchLog(
 		}
 	}
 
-	matches := applyContext(lines, matchIndices, input.ContextLines, t.maxContextLines)
-	page, pagination := paginateMatches(matches, input.Page, t.maxSearchResultsPerPage)
+	matches := applyContext(lines, matchIndices, input.ContextLines, t.cfg.Pagination.MaxContextLines)
+	page, pagination := paginateMatches(matches, input.Page, t.cfg.Pagination.MaxSearchResultsPerPage)
 
 	return nil, &dto.SearchPage{Matches: page, Pagination: pagination}, nil
 }

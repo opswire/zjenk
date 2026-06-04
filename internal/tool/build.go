@@ -7,16 +7,17 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"mcp-jenkins/internal/client"
+	"mcp-jenkins/internal/config"
 	"mcp-jenkins/internal/dto"
 )
 
 type BuildTools struct {
-	jenkins         *client.Jenkins
-	maxCharsPerPage int64
+	jenkins *client.Jenkins
+	cfg     *config.Config
 }
 
-func NewBuildTools(j *client.Jenkins, maxCharsPerPage int64) *BuildTools {
-	return &BuildTools{jenkins: j, maxCharsPerPage: maxCharsPerPage}
+func NewBuildTools(j *client.Jenkins, cfg *config.Config) *BuildTools {
+	return &BuildTools{jenkins: j, cfg: cfg}
 }
 
 func (t *BuildTools) GetLastBuild(
@@ -77,7 +78,7 @@ func (t *BuildTools) GetBuildLog(
 	if err != nil {
 		return toolError(fmt.Sprintf("failed to get build log: %v", err)), nil, nil
 	}
-	content, pagination := paginateText(log, input.Page, input.CharsPerPage, t.maxCharsPerPage)
+	content, pagination := paginateText(log, input.Page, input.CharsPerPage, t.cfg.Pagination.MaxCharsPerPage)
 	return nil, &dto.BuildLogPage{Content: content, Pagination: pagination}, nil
 }
 

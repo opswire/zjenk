@@ -22,13 +22,9 @@ func main() {
 			config.Load,
 			client.New,
 			tool.NewJobTools,
-			func(j *client.Jenkins, cfg *config.Config) *tool.BuildTools {
-				return tool.NewBuildTools(j, cfg.Pagination.MaxCharsPerPage)
-			},
+			tool.NewBuildTools,
 			tool.NewNodeTools,
-			func(j *client.Jenkins, cfg *config.Config) *tool.SearchTools {
-				return tool.NewSearchTools(j, cfg.Pagination.MaxContextLines, cfg.Pagination.MaxSearchResultsPerPage)
-			},
+			tool.NewSearchTools,
 			server.New,
 		),
 		fx.Invoke(registerTools),

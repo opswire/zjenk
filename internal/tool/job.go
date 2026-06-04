@@ -7,15 +7,17 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"mcp-jenkins/internal/client"
+	"mcp-jenkins/internal/config"
 	"mcp-jenkins/internal/dto"
 )
 
 type JobTools struct {
 	jenkins *client.Jenkins
+	cfg     *config.Config
 }
 
-func NewJobTools(j *client.Jenkins) *JobTools {
-	return &JobTools{jenkins: j}
+func NewJobTools(j *client.Jenkins, cfg *config.Config) *JobTools {
+	return &JobTools{jenkins: j, cfg: cfg}
 }
 
 // ListJobs — Out is `any` ([]dto.Job); see comment in build.go on why not []dto.Job directly.
