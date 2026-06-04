@@ -48,6 +48,13 @@ func (i BuildRefInput) Validate() error {
 	)
 }
 
+func (i GetBuildLogInput) Validate() error {
+	return validation.ValidateStruct(&i,
+		validation.Field(&i.JobPath, jobPathRules...),
+		validation.Field(&i.BuildNumber, validation.Required, validation.Min(int64(1))),
+	)
+}
+
 func (i TriggerBuildInput) Validate() error {
 	return validation.ValidateStruct(&i,
 		validation.Field(&i.JobPath, jobPathRules...),

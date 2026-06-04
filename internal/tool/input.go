@@ -33,6 +33,13 @@ type (
 		BuildNumber int64 `json:"build_number" jsonschema:"[Required] Номер сборки (целое положительное число)"`
 	}
 
+	GetBuildLogInput struct {
+		JobPathInput
+		BuildNumber  int64 `json:"build_number"            jsonschema:"[Required] Номер сборки (целое положительное число)"`
+		Page         int64 `json:"page,omitempty"          jsonschema:"[Optional] Номер страницы (по умолчанию 1)"`
+		CharsPerPage int64 `json:"chars_per_page,omitempty" jsonschema:"[Optional] Количество символов на странице (не может превышать лимит из конфига)"`
+	}
+
 	TriggerBuildInput struct {
 		JobPathInput
 		Params map[string]string `json:"params,omitempty" jsonschema:"[Optional] Параметры запуска сборки в формате ключ-значение"`
@@ -40,8 +47,10 @@ type (
 
 	SearchLogInput struct {
 		JobPathInput
-		BuildNumber int64  `json:"build_number" jsonschema:"[Required] Номер сборки (целое положительное число)"`
-		Pattern     string `json:"pattern"      jsonschema:"[Required] Регулярное выражение или подстрока для поиска в логе сборки"`
+		BuildNumber  int64  `json:"build_number"            jsonschema:"[Required] Номер сборки (целое положительное число)"`
+		Pattern      string `json:"pattern"                 jsonschema:"[Required] Регулярное выражение или подстрока для поиска в логе сборки"`
+		Page         int64  `json:"page,omitempty"          jsonschema:"[Optional] Номер страницы результатов (по умолчанию 1)"`
+		ContextLines int64  `json:"context_lines,omitempty" jsonschema:"[Optional] Количество контекстных строк сверху и снизу от совпадения"`
 	}
 
 	ListNodesInput struct {

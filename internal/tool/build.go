@@ -11,11 +11,12 @@ import (
 )
 
 type BuildTools struct {
-	jenkins *client.Jenkins
+	jenkins         *client.Jenkins
+	maxCharsPerPage int64
 }
 
-func NewBuildTools(j *client.Jenkins) *BuildTools {
-	return &BuildTools{jenkins: j}
+func NewBuildTools(j *client.Jenkins, maxCharsPerPage int64) *BuildTools {
+	return &BuildTools{jenkins: j, maxCharsPerPage: maxCharsPerPage}
 }
 
 func (t *BuildTools) GetLastBuild(
@@ -64,12 +65,11 @@ func (t *BuildTools) GetBuild(
 	return nil, build, nil
 }
 
-// GetBuildLog returns raw console text — no structured output.
 func (t *BuildTools) GetBuildLog(
 	ctx context.Context,
 	_ *mcp.CallToolRequest,
-	input BuildRefInput,
-) (*mcp.CallToolResult, any, error) {
+	input GetBuildLogInput,
+) (*mcp.CallToolResult, *dto.BuildLogPage, error) {
 	if err := input.Validate(); err != nil {
 		return toolError(err.Error()), nil, nil
 	}
@@ -77,9 +77,8 @@ func (t *BuildTools) GetBuildLog(
 	if err != nil {
 		return toolError(fmt.Sprintf("failed to get build log: %v", err)), nil, nil
 	}
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{&mcp.TextContent{Text: log}},
-	}, nil, nil
+	content, pagination := paginateText(log, input.Page, input.CharsPerPage, t.maxCharsPerPage)
+	return nil, &dto.BuildLogPage{Content: content, Pagination: pagination}, nil
 }
 
 func (t *BuildTools) TriggerBuild(

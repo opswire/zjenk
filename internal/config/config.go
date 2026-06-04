@@ -8,9 +8,16 @@ import (
 )
 
 type Config struct {
-	Jenkins JenkinsConfig         `yaml:"jenkins"`
-	MCP     MCPConfig             `yaml:"mcp"`
-	Tools   map[string]ToolConfig `yaml:"tools"`
+	Jenkins    JenkinsConfig         `yaml:"jenkins"`
+	MCP        MCPConfig             `yaml:"mcp"`
+	Tools      map[string]ToolConfig `yaml:"tools"`
+	Pagination PaginationConfig      `yaml:"pagination"`
+}
+
+type PaginationConfig struct {
+	MaxCharsPerPage         int64 `yaml:"max_chars_per_page"`
+	MaxContextLines         int64 `yaml:"max_context_lines"`
+	MaxSearchResultsPerPage int64 `yaml:"max_search_results_per_page"`
 }
 
 type JenkinsConfig struct {
@@ -81,6 +88,15 @@ func (c *Config) validate() error {
 	}
 	if c.MCP.Version == "" {
 		c.MCP.Version = "1.0.0"
+	}
+	if c.Pagination.MaxCharsPerPage <= 0 {
+		c.Pagination.MaxCharsPerPage = 50_000
+	}
+	if c.Pagination.MaxContextLines <= 0 {
+		c.Pagination.MaxContextLines = 10
+	}
+	if c.Pagination.MaxSearchResultsPerPage <= 0 {
+		c.Pagination.MaxSearchResultsPerPage = 100
 	}
 	return nil
 }

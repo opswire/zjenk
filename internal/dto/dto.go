@@ -66,5 +66,22 @@ type (
 	SearchMatch struct {
 		Line    int    `json:"line"`
 		Content string `json:"content"`
+		Match   bool   `json:"match,omitempty"`
+	}
+
+	Pagination struct {
+		CurrentPage  int64 `json:"current_page"`
+		TotalPages   int64 `json:"total_pages"`
+		CharsPerPage int64 `json:"chars_per_page"`
+	}
+
+	BuildLogPage struct {
+		Content    string     `json:"content"`
+		Pagination Pagination `json:"pagination"`
+	}
+
+	SearchPage struct {
+		Matches    []SearchMatch `json:"matches"`
+		Pagination Pagination    `json:"pagination"`
 	}
 )

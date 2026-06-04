@@ -64,7 +64,7 @@ func (j *Jenkins) ListJobs(ctx context.Context, projectName string) ([]dto.Job, 
 	resp, err := j.jsonClient.R().
 		SetContext(ctx).
 		SetResult(&data).
-		Get(base + "/api/json?tree=jobs[name,url,color,inQueue]")
+		Get(base + jobAPIPath(projectName) + "/api/json?tree=jobs[name,url,color,inQueue]")
 	if err != nil {
 		return nil, fmt.Errorf("list jobs: %w", err)
 	} else if resp.IsError() {
@@ -251,7 +251,7 @@ func (j *Jenkins) ListNodes(ctx context.Context, projectName string) ([]dto.Node
 	resp, err := j.jsonClient.R().
 		SetContext(ctx).
 		SetResult(&data).
-		Get(base + "/computer/api/json?tree=computer[displayName,offline,temporarilyOffline,idle,numExecutors,offlineCauseReason]")
+		Get(base + jobAPIPath(projectName) + "/computer/api/json?tree=computer[displayName,offline,temporarilyOffline,idle,numExecutors,offlineCauseReason]")
 	if err != nil {
 		return nil, fmt.Errorf("list nodes: %w", err)
 	} else if resp.IsError() {
@@ -284,7 +284,7 @@ func (j *Jenkins) GetQueue(ctx context.Context, projectName string) ([]dto.Queue
 	resp, err := j.jsonClient.R().
 		SetContext(ctx).
 		SetResult(&data).
-		Get(base + "/queue/api/json?tree=items[id,task[name],why,stuck,blocked,buildable,inQueueSince]")
+		Get(base + jobAPIPath(projectName) + "/queue/api/json?tree=items[id,task[name],why,stuck,blocked,buildable,inQueueSince]")
 	if err != nil {
 		return nil, fmt.Errorf("get queue: %w", err)
 	} else if resp.IsError() {

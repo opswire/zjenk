@@ -13,32 +13,38 @@ import (
 )
 
 type SearchTools struct {
-	jenkins *client.Jenkins
+	jenkins                 *client.Jenkins
+	maxContextLines         int64
+	maxSearchResultsPerPage int64
 }
 
-func NewSearchTools(j *client.Jenkins) *SearchTools {
-	return &SearchTools{jenkins: j}
+func NewSearchTools(j *client.Jenkins, maxContextLines, maxSearchResultsPerPage int64) *SearchTools {
+	return &SearchTools{
+		jenkins:                 j,
+		maxContextLines:         maxContextLines,
+		maxSearchResultsPerPage: maxSearchResultsPerPage,
+	}
 }
 
-// SearchLog — Out is `any` ([]dto.SearchMatch); see ListJobs for the reason.
 func (t *SearchTools) SearchLog(
 	ctx context.Context,
 	_ *mcp.CallToolRequest,
 	input SearchLogInput,
-) (*mcp.CallToolResult, any, error) {
+) (*mcp.CallToolResult, *dto.SearchPage, error) {
 	if err := input.Validate(); err != nil {
 		return toolError(err.Error()), nil, nil
 	}
 
-	log, err := t.jenkins.GetBuildLog(ctx, input.JobPath, input.BuildNumber)
+	rawLog, err := t.jenkins.GetBuildLog(ctx, input.JobPath, input.BuildNumber)
 	if err != nil {
 		return toolError(fmt.Sprintf("failed to get build log: %v", err)), nil, nil
 	}
 
 	re, reErr := regexp.Compile(input.Pattern)
+	lines := strings.Split(rawLog, "\n")
 
-	var matches []dto.SearchMatch
-	for i, line := range strings.Split(log, "\n") {
+	var matchIndices []int
+	for i, line := range lines {
 		var matched bool
 		if reErr != nil {
 			matched = strings.Contains(line, input.Pattern)
@@ -46,9 +52,12 @@ func (t *SearchTools) SearchLog(
 			matched = re.MatchString(line)
 		}
 		if matched {
-			matches = append(matches, dto.SearchMatch{Line: i + 1, Content: line})
+			matchIndices = append(matchIndices, i)
 		}
 	}
 
-	return nil, matches, nil
+	matches := applyContext(lines, matchIndices, input.ContextLines, t.maxContextLines)
+	page, pagination := paginateMatches(matches, input.Page, t.maxSearchResultsPerPage)
+
+	return nil, &dto.SearchPage{Matches: page, Pagination: pagination}, nil
 }
